@@ -1,0 +1,47 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+
+/ {
+	model = "Loongson Education loongson-soc";
+	compatible = "loongson-edu,loongson-soc";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x08000000>;
+	};
+
+	cpu_intc: interrupt-controller {
+		compatible = "loongson,cpu-interrupt-controller";
+		interrupt-controller;
+		#interrupt-cells = <1>;
+	};
+
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		uart0: serial@1fe001e0 {
+			compatible = "ns16550a";
+			reg = <0x1fe001e0 0x10>;
+			clock-frequency = <33000000>;
+			interrupt-parent = <&cpu_intc>;
+			interrupts = <3>;
+			reg-shift = <0>;
+			reg-io-width = <1>;
+			no-loopback-test;
+			status = "okay";
+		};
+	};
+};
