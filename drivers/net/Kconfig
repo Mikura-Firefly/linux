@@ -630,6 +630,15 @@ config NET_FAILOVER
 	  a VM with direct attached VF by failing over to the paravirtual
 	  datapath when the VF is unplugged.
 
+config DMFE_MAC
+	tristate "Loongson Education dmfe platform MAC support"
+	depends on OF && HAS_IOMEM
+	select CRC32
+	help
+	  Enable the non-PCI 10/100 MAC integrated in the loongson-soc
+	  platform. The driver binds to the loongson-edu,dmfe device-tree
+	  compatible string.
+
 config NETDEV_LEGACY_INIT
 	bool
 	depends on ISA

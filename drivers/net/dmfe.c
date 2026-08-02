@@ -1649,6 +1649,7 @@ static int dmfe_pltfr_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id ls_dmfe_dt_match[] = {
+	{ .compatible = "loongson-edu,dmfe", },
 	{ .compatible = "dmfe", },
 	{},
 };
