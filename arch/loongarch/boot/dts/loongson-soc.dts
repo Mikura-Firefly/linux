@@ -43,5 +43,14 @@
 			no-loopback-test;
 			status = "okay";
 		};
+
+		ethernet@1ff00000 {
+			compatible = "loongson-edu,dmfe";
+			reg = <0x1ff00000 0x80>;
+			interrupt-parent = <&cpu_intc>;
+			interrupts = <1>;
+			local-mac-address = [00 98 76 64 32 19];
+			status = "okay";
+		};
 	};
 };
