@@ -314,8 +314,10 @@ static void setup_tlb_handler(int cpu)
 void tlb_init(int cpu)
 {
 	write_csr_pagesize(PS_DEFAULT_SIZE);
+#ifndef CONFIG_32BIT_REDUCED
 	write_csr_stlbpgsize(PS_DEFAULT_SIZE);
 	write_csr_tlbrefill_pagesize(PS_DEFAULT_SIZE);
+#endif
 
 	setup_tlb_handler(cpu);
 	output_pgtable_bits_defines();

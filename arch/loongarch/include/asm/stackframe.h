@@ -63,10 +63,12 @@
 	csrwr	\temp, LOONGARCH_CSR_DMWIN0
 	PTR_LI	\temp, CSR_DMW1_INIT	# CAC, PLV0, LA32: 0xaxxx xxxx, LA64: 0x9000 xxxx xxxx xxxx
 	csrwr	\temp, LOONGARCH_CSR_DMWIN1
+#ifndef CONFIG_32BIT_REDUCED
 	PTR_LI	\temp, CSR_DMW2_INIT	# WUC, PLV0, LA32: unavailable, LA64: 0xa000 xxxx xxxx xxxx
 	csrwr	\temp, LOONGARCH_CSR_DMWIN2
 	PTR_LI	\temp, CSR_DMW3_INIT	# 0x0, unused
 	csrwr	\temp, LOONGARCH_CSR_DMWIN3
+#endif
 	.endm
 
 /* Jump to the runtime virtual address. */

@@ -80,7 +80,7 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	la.pcrel	t0, fw_arg2
 	PTR_S		a2, t0, 0
 
-#ifdef CONFIG_PAGE_SIZE_4KB
+#if defined(CONFIG_PAGE_SIZE_4KB) && !defined(CONFIG_32BIT_REDUCED)
 	LONG_LI		t0, 0
 	LONG_LI		t1, CSR_STFILL
 	csrxchg		t0, t1, LOONGARCH_CSR_IMPCTL1
@@ -137,7 +137,7 @@ SYM_CODE_START(smpboot_entry)
 	JUMP_VIRT_ADDR	t0, t1
 	SETUP_DMWINS	t0
 
-#ifdef CONFIG_PAGE_SIZE_4KB
+#if defined(CONFIG_PAGE_SIZE_4KB) && !defined(CONFIG_32BIT_REDUCED)
 	LONG_LI		t0, 0
 	LONG_LI		t1, CSR_STFILL
 	csrxchg		t0, t1, LOONGARCH_CSR_IMPCTL1

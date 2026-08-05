@@ -597,14 +597,26 @@ SYM_CODE_START(handle_tlb_refill)
 	li.w		ra, 0x1fffffff
 
 	csrrd		t0, LOONGARCH_CSR_PGD
+#ifdef CONFIG_32BIT_REDUCED
+	/*
+	 * LA32R has a single BADV/ERA exception state and no TLBR* bank.
+	 * Its 4 KiB software refill writes the normal TLB entry CSRs.
+	 */
+	csrrd		t1, LOONGARCH_CSR_BADV
+#else
 	csrrd		t1, LOONGARCH_CSR_TLBRBADV
+#endif
 	srli.w		t1, t1, PGDIR_SHIFT
 	slli.w		t1, t1, 0x2
 	add.w		t0, t0, t1
 	and		t0, t0, ra
 
 	ld.w		t0, t0, 0
+#ifdef CONFIG_32BIT_REDUCED
+	csrrd		t1, LOONGARCH_CSR_BADV
+#else
 	csrrd		t1, LOONGARCH_CSR_TLBRBADV
+#endif
 	slli.w		t1, t1, (32 - PGDIR_SHIFT)
 	srli.w		t1, t1, (32 - PGDIR_SHIFT + PAGE_SHIFT + 1)
 	slli.w		t1, t1, (0x2 + 1)
@@ -612,10 +624,18 @@ SYM_CODE_START(handle_tlb_refill)
 	and		t0, t0, ra
 
 	ld.w		t1, t0, 0x0
+#ifdef CONFIG_32BIT_REDUCED
+	csrwr		t1, LOONGARCH_CSR_TLBELO0
+#else
 	csrwr		t1, LOONGARCH_CSR_TLBRELO0
+#endif
 
 	ld.w		t1, t0, 0x4
+#ifdef CONFIG_32BIT_REDUCED
+	csrwr		t1, LOONGARCH_CSR_TLBELO1
+#else
 	csrwr		t1, LOONGARCH_CSR_TLBRELO1
+#endif
 
 	tlbfill
 	csrrd		t0, EXCEPTION_KS0
