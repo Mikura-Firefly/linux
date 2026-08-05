@@ -39,13 +39,9 @@
 	.endm
 
 	.macro SETUP_TWINS temp
-	/*
-	 * LA32R's reduced core does not implement PCADDI.  At this early point
-	 * $ra is disposable, so use BL's architectural link value as the PC.
-	 */
-	bl	.Lsetup_twins_pc\@
+	/* LA32R's reduced core does not implement PCADDI. */
+	la.pcrel	t0, .Lsetup_twins_pc\@
 .Lsetup_twins_pc\@:
-	move	t0, ra
 	PTR_LI	t1, ~TO_PHYS_MASK
 	and	t0, t0, t1
 	ori	t0, t0, (1 << 4 | 1)
@@ -81,11 +77,10 @@
 	.macro JUMP_VIRT_ADDR temp1 temp2
 	PTR_LI	\temp1, CACHE_BASE
 	/* See SETUP_TWINS: PCADDI is absent on the LA32R reduced core. */
-	bl	.Ljump_virt_pc\@
+	la.pcrel	\temp2, .Ljump_virt_pc\@
 .Ljump_virt_pc\@:
-	move	\temp2, ra
 	PTR_BSTRINS  \temp1, \temp2, (DMW_PABITS - 1), 0
-	jirl	zero, \temp1, 0xc
+	jirl	zero, \temp1, 0
 	.endm
 
 	.macro STACKLEAK_ERASE
