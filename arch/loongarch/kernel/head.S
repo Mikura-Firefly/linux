@@ -91,7 +91,7 @@ SYM_DATA(kernel_fsize, .long _kernel_fsize);
 	andi	t3, t3, 0xf
 	sltui	t4, t3, 10
 	addi.w	t5, t3, 0x30
-	bnez	t4, .Learly_hex_emit\@
+	bne	t4, zero, .Learly_hex_emit\@
 	addi.w	t5, t3, 0x57
 .Learly_hex_emit\@:
 	LA32R_EARLY_PUTC t5
