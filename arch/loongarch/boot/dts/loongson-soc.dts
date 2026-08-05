@@ -40,6 +40,7 @@
 			interrupts = <3>;
 			reg-shift = <0>;
 			reg-io-width = <1>;
+			current-speed = <115200>;
 			no-loopback-test;
 			status = "okay";
 		};
