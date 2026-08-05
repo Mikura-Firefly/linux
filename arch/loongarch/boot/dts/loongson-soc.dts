@@ -32,9 +32,9 @@
 		#size-cells = <1>;
 		ranges;
 
-		uart0: serial@1fe001e0 {
+		uart0: serial@1fe00000 {
 			compatible = "ns16550a";
-			reg = <0x1fe001e0 0x10>;
+			reg = <0x1fe00000 0x1000>;
 			clock-frequency = <33000000>;
 			interrupt-parent = <&cpu_intc>;
 			interrupts = <3>;
