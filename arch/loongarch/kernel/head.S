@@ -42,9 +42,29 @@ SYM_DATA(kernel_fsize, .long _kernel_fsize);
 	.align 12
 
 /*
- * Chiplab uses the same uncached 0x9fe00000 UART mapping as U-Boot.  Keep
- * these two single-byte probes until the first Linux handoff is verified.
+ * Chiplab uses the same uncached 0x9fe00000 UART mapping as U-Boot.  Do not
+ * inherit its UART state: program the 33 MHz NS16550 for 115200 8N1 before
+ * emitting the early handoff markers.  The divisor is 33 MHz / (16 * 115200),
+ * rounded to 18.
  */
+	.macro LA32R_EARLY_UART_INIT
+	li.w	t0, 0x9fe00000
+	li.w	t1, 0x03		/* 8 data bits, 1 stop bit, no parity */
+	st.b	t1, t0, 3		/* LCR */
+	st.b	zero, t0, 1		/* IER: disable interrupts */
+	li.w	t1, 0x07
+	st.b	t1, t0, 2		/* FCR: enable and clear both FIFOs */
+	li.w	t1, 0x03
+	st.b	t1, t0, 4		/* MCR: DTR and RTS */
+	li.w	t1, 0x83
+	st.b	t1, t0, 3		/* LCR: select divisor latch */
+	li.w	t1, 18
+	st.b	t1, t0, 0		/* DLL */
+	st.b	zero, t0, 1		/* DLM */
+	li.w	t1, 0x03
+	st.b	t1, t0, 3		/* LCR: 8N1, divisor latch off */
+	.endm
+
 	.macro LA32R_EARLY_MARK value
 	li.w	t0, 0x9fe00000
 1:
@@ -58,6 +78,7 @@ SYM_DATA(kernel_fsize, .long _kernel_fsize);
 SYM_CODE_START(kernel_entry)			# kernel entry point
 	UNWIND_HINT_END_OF_STACK
 
+	LA32R_EARLY_UART_INIT
 	LA32R_EARLY_MARK	0x41		# 'A': entered kernel
 	SETUP_TWINS
 	SETUP_MODES	t0
