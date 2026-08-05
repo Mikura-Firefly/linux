@@ -75,8 +75,38 @@ SYM_DATA(kernel_fsize, .long _kernel_fsize);
 	st.b	t1, t0, 0
 	.endm
 
+	.macro LA32R_EARLY_PUTC reg
+	li.w	t0, 0x9fe00000
+.Learly_putc_wait\@:
+	ld.b	t1, t0, 5
+	andi	t1, t1, 0x20
+	beq	t1, zero, .Learly_putc_wait\@
+	st.b	\reg, t0, 0
+	.endm
+
+	.macro LA32R_EARLY_HEX reg
+	li.w	t2, 28
+.Learly_hex_loop\@:
+	srl.w	t3, \reg, t2
+	andi	t3, t3, 0xf
+	sltui	t4, t3, 10
+	addi.w	t5, t3, 0x30
+	bnez	t4, .Learly_hex_emit\@
+	addi.w	t5, t3, 0x57
+.Learly_hex_emit\@:
+	LA32R_EARLY_PUTC t5
+	addi.w	t2, t2, -4
+	bge	t2, zero, .Learly_hex_loop\@
+	.endm
+
 SYM_CODE_START(kernel_entry)			# kernel entry point
 	UNWIND_HINT_END_OF_STACK
+
+	/* Replace U-Boot's exception vectors before touching any kernel state. */
+	la.pcrel	t0, la32r_early_exception
+	csrwr	t0, LOONGARCH_CSR_EENTRY
+	csrwr	t0, LOONGARCH_CSR_TLBRENTRY
+	csrwr	zero, LOONGARCH_CSR_ECFG
 
 	LA32R_EARLY_UART_INIT
 	LA32R_EARLY_MARK	0x41		# 'A': entered kernel
@@ -143,6 +173,41 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	ASM_BUG()
 
 SYM_CODE_END(kernel_entry)
+
+	/*
+	 * Bring-up-only trap sink.  It deliberately uses no stack or memory and
+	 * reports ESTAT, ERA, TLBRERA and BADV through the already known UART.
+	 */
+	.align 12
+SYM_CODE_START(la32r_early_exception)
+	csrrd	s0, LOONGARCH_CSR_ESTAT
+	csrrd	s1, LOONGARCH_CSR_ERA
+	csrrd	s2, LOONGARCH_CSR_TLBRERA
+	csrrd	s3, LOONGARCH_CSR_BADV
+
+	li.w	t5, 0x0d
+	LA32R_EARLY_PUTC t5
+	li.w	t5, 0x0a
+	LA32R_EARLY_PUTC t5
+	li.w	t5, 0x45		# 'E'
+	LA32R_EARLY_PUTC t5
+	LA32R_EARLY_HEX s0
+	li.w	t5, 0x3a		# ':'
+	LA32R_EARLY_PUTC t5
+	LA32R_EARLY_HEX s1
+	li.w	t5, 0x3a
+	LA32R_EARLY_PUTC t5
+	LA32R_EARLY_HEX s2
+	li.w	t5, 0x3a
+	LA32R_EARLY_PUTC t5
+	LA32R_EARLY_HEX s3
+	li.w	t5, 0x0d
+	LA32R_EARLY_PUTC t5
+	li.w	t5, 0x0a
+	LA32R_EARLY_PUTC t5
+1:
+	b	1b
+SYM_CODE_END(la32r_early_exception)
 
 #ifdef CONFIG_SMP
 
