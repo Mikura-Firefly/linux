@@ -41,13 +41,29 @@ SYM_DATA(kernel_fsize, .long _kernel_fsize);
 
 	.align 12
 
+/*
+ * Chiplab uses the same uncached 0x9fe00000 UART mapping as U-Boot.  Keep
+ * these two single-byte probes until the first Linux handoff is verified.
+ */
+	.macro LA32R_EARLY_MARK value
+	li.w	t0, 0x9fe00000
+1:
+	ld.b	t1, t0, 5
+	andi	t1, t1, 0x20
+	beq	t1, zero, 1b
+	li.w	t1, \value
+	st.b	t1, t0, 0
+	.endm
+
 SYM_CODE_START(kernel_entry)			# kernel entry point
 	UNWIND_HINT_END_OF_STACK
 
+	LA32R_EARLY_MARK	0x41		# 'A': entered kernel
 	SETUP_TWINS
 	SETUP_MODES	t0
 	JUMP_VIRT_ADDR	t0, t1
 	SETUP_DMWINS	t0
+	LA32R_EARLY_MARK	0x42		# 'B': DMWs are installed
 
 	la.pcrel	t0, __bss_start		# clear .bss
 	LONG_S		zero, t0, 0
