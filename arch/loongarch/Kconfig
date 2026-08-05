@@ -87,8 +87,7 @@ config LOONGARCH
 	select COMMON_CLK
 	select CPU_PM
 	select EDAC_SUPPORT
-	# LA32R reduced systems boot through the platform firmware, not EFI.
-	select EFI if !32BIT_REDUCED
+	select EFI
 	select GENERIC_ATOMIC64 if 32BIT
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CMOS_UPDATE
