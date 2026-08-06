@@ -125,6 +125,7 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	LA32R_EARLY_MARK	0x44		# 'D': DMW setup completed
 	LA32R_EARLY_MARK	0x42		# 'B': immediately before PG enable
 	SETUP_MODES	t0
+	LA32R_EARLY_MARK	0x50		# 'P': executing through the DMWs
 #else
 	SETUP_TWINS
 	LA32R_EARLY_MARK	0x44		# 'D': DMW setup completed
@@ -141,6 +142,7 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	PTR_ADDI	t0, t0, LONGSIZE
 	LONG_S		zero, t0, 0
 	bne		t0, t1, 1b
+	LA32R_EARLY_MARK	0x51		# 'Q': BSS is clear
 
 	la.pcrel	t0, fw_arg0
 	PTR_S		a0, t0, 0		# firmware arguments
