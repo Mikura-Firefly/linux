@@ -90,8 +90,12 @@
 	.endm
 
 	.macro BACKUP_T0T1
+#ifdef CONFIG_32BIT_REDUCED
+	/* la32r_exception_entry saved t0..t2 before software dispatch. */
+#else
 	csrwr	t0, EXCEPTION_KS0
 	csrwr	t1, EXCEPTION_KS1
+#endif
 	.endm
 
 	.macro RELOAD_T0T1
@@ -101,6 +105,9 @@
 
 	.macro	SAVE_TEMP docfi=0
 	RELOAD_T0T1
+#ifdef CONFIG_32BIT_REDUCED
+	csrrd	t2, EXCEPTION_KS2
+#endif
 	cfi_st	t0, PT_R12, \docfi
 	cfi_st	t1, PT_R13, \docfi
 	cfi_st	t2, PT_R14, \docfi

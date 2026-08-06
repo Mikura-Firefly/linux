@@ -37,6 +37,31 @@ idle_exit:
 SYM_FUNC_END(__arch_cpu_idle)
 	.previous
 
+#ifdef CONFIG_32BIT_REDUCED
+/*
+ * LA32R sends every ordinary exception and interrupt to CSR.EENTRY.  It has
+ * no ECODE-indexed vectoring, so preserve the temporaries used for dispatch
+ * and branch to the existing software handlers explicitly.
+ */
+	.align	6
+SYM_CODE_START(la32r_exception_entry)
+	csrwr	t0, EXCEPTION_KS0
+	csrwr	t1, EXCEPTION_KS1
+	csrwr	t2, EXCEPTION_KS2
+	csrrd	t0, LOONGARCH_CSR_ESTAT
+	srli.w	t1, t0, 16
+	andi	t1, t1, 0x3f
+	beq	t1, zero, 1f
+	la_abs	t0, exception_handlers
+	slli.w	t1, t1, 7		/* VECSIZE is 128 bytes */
+	add.w	t0, t0, t1
+	jirl	zero, t0, 0
+1:
+	la_abs	t0, handle_vint
+	jirl	zero, t0, 0
+SYM_CODE_END(la32r_exception_entry)
+#endif
+
 SYM_CODE_START(handle_vint)
 	UNWIND_HINT_UNDEFINED
 	BACKUP_T0T1

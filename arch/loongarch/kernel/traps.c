@@ -1142,12 +1142,20 @@ unsigned long tlbrentry;
 
 long exception_handlers[VECSIZE * 128 / sizeof(long)] __aligned(SZ_64K);
 
+#ifdef CONFIG_32BIT_REDUCED
+extern void la32r_exception_entry(void);
+#endif
+
 static void configure_exception_vector(void)
 {
 	eentry    = (unsigned long)exception_handlers;
 	tlbrentry = (unsigned long)exception_handlers + 80*VECSIZE;
 
+#ifdef CONFIG_32BIT_REDUCED
+	csr_write((unsigned long)la32r_exception_entry, LOONGARCH_CSR_EENTRY);
+#else
 	csr_write(eentry, LOONGARCH_CSR_EENTRY);
+#endif
 	csr_write(__pa(eentry), LOONGARCH_CSR_MERRENTRY);
 	csr_write(__pa(tlbrentry), LOONGARCH_CSR_TLBRENTRY);
 }
