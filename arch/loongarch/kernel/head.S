@@ -111,12 +111,28 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	LA32R_EARLY_UART_INIT
 	LA32R_EARLY_MARK	0x41		# 'A': entered kernel
 	LA32R_EARLY_MARK	0x43		# 'C': immediately before DMW setup
+#ifdef CONFIG_32BIT_REDUCED
+	/*
+	 * The Chiplab LA32R core lacks the PC-relative instructions used by the
+	 * generic twin-window setup.  Its downstream firmware uses these two DMW
+	 * values: execute the loaded kernel through 0xa..., with 0x8... retained
+	 * as the alternate direct map.
+	 */
+	PTR_LI		t0, 0xa0000011
+	csrwr		t0, LOONGARCH_CSR_DMWIN0
+	PTR_LI		t0, 0x80000001
+	csrwr		t0, LOONGARCH_CSR_DMWIN1
+	LA32R_EARLY_MARK	0x44		# 'D': DMW setup completed
+	LA32R_EARLY_MARK	0x42		# 'B': immediately before PG enable
+	SETUP_MODES	t0
+#else
 	SETUP_TWINS
 	LA32R_EARLY_MARK	0x44		# 'D': DMW setup completed
 	SETUP_MODES	t0
 	JUMP_VIRT_ADDR	t0, t1
 	SETUP_DMWINS	t0
 	LA32R_EARLY_MARK	0x42		# 'B': DMWs are installed
+#endif
 
 	la.pcrel	t0, __bss_start		# clear .bss
 	LONG_S		zero, t0, 0
