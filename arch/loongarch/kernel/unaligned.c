@@ -27,6 +27,16 @@ static u32 unaligned_instructions_user;
 static u32 unaligned_instructions_kernel;
 #endif
 
+#ifdef CONFIG_32BIT_REDUCED
+static inline u64 read_fpr(unsigned int idx)
+{
+	return 0;
+}
+
+static inline void write_fpr(unsigned int idx, u64 value)
+{
+}
+#else
 static inline u64 read_fpr(unsigned int idx)
 {
 #ifdef CONFIG_64BIT
@@ -263,6 +273,7 @@ static inline void write_fpr(unsigned int idx, u64 value)
 	}
 #undef WRITE_FPR
 }
+#endif
 
 void emulate_load_store_insn(struct pt_regs *regs, void __user *addr, unsigned int *pc)
 {

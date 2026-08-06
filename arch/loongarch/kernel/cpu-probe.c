@@ -285,6 +285,7 @@ static void cpu_probe_common(struct cpuinfo_loongarch *c)
 #define VENDOR_OFFSET	0
 #define CPUNAME_OFFSET	9
 
+#ifndef CONFIG_32BIT_REDUCED
 static char cpu_full_name[MAX_NAME_LEN] = "        -        ";
 
 static inline void cpu_probe_loongson(struct cpuinfo_loongarch *c, unsigned int cpu)
@@ -348,6 +349,7 @@ static inline void cpu_probe_loongson(struct cpuinfo_loongarch *c, unsigned int 
 	if (config & IOCSRF_VM)
 		c->options |= LOONGARCH_CPU_HYPERVISOR;
 }
+#endif
 
 #ifdef CONFIG_32BIT_REDUCED
 /*
@@ -416,15 +418,14 @@ void cpu_probe(void)
 
 	/* CPUCFG.0 is architecturally undefined on the reduced LA32R profile. */
 #ifdef CONFIG_32BIT_REDUCED
-	if (!c->processor_id) {
-		cpu_probe_la32r_reduced(c, cpu);
-	} else
-#endif
+	cpu_probe_la32r_reduced(c, cpu);
+#else
 	switch (c->processor_id & PRID_COMP_MASK) {
 	case PRID_COMP_LOONGSON:
 		cpu_probe_loongson(c, cpu);
 		break;
 	}
+#endif
 
 	BUG_ON(!__cpu_family[cpu]);
 	BUG_ON(c->cputype == CPU_UNKNOWN);

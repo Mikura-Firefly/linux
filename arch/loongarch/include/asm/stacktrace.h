@@ -53,7 +53,7 @@ static __always_inline void prepare_frametrace(struct pt_regs *regs)
 		/* Save $ra */
 		STORE_ONE_REG(1)
 		/* Use $ra to save PC */
-		"pcaddi	$ra, 0\n\t"
+		"pcaddu12i	$ra, 0\n\t"
 		STR_LONG_S " $ra, %0\n\t"
 		/* Restore $ra */
 		STR_LONG_L " $ra, %1, "STR_LONGSIZE"\n\t"

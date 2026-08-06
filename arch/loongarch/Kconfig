@@ -58,7 +58,7 @@ config LOONGARCH
 	select ARCH_INLINE_SPIN_UNLOCK_IRQRESTORE if !PREEMPTION
 	select ARCH_KEEP_MEMBLOCK
 	select ARCH_MIGHT_HAVE_PC_PARPORT
-	select ARCH_MIGHT_HAVE_PC_SERIO
+	select ARCH_MIGHT_HAVE_PC_SERIO if !32BIT_REDUCED
 	select ARCH_STACKWALK
 	select ARCH_SUPPORTS_ACPI
 	select ARCH_SUPPORTS_ATOMIC_RMW
@@ -631,7 +631,7 @@ config CPU_HAS_AMO
 
 config CPU_HAS_FPU
 	bool
-	default y
+	default !32BIT_REDUCED
 
 config CPU_HAS_LSX
 	bool "Support for the Loongson SIMD Extension"

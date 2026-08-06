@@ -525,7 +525,9 @@ asmlinkage void noinstr do_fpe(struct pt_regs *regs, unsigned long fcsr)
 		goto out;
 
 	/* Clear FCSR.Cause before enabling interrupts */
+#ifndef CONFIG_32BIT_REDUCED
 	write_fcsr(LOONGARCH_FCSR0, fcsr & ~mask_fcsr_x(fcsr));
+#endif
 	local_irq_enable();
 
 	die_if_kernel("FP exception in kernel code", regs);

@@ -17,6 +17,88 @@
 #include <asm/regdef.h>
 #include <asm/unwind_hints.h>
 
+#ifdef CONFIG_32BIT_REDUCED
+/*
+ * LA32R has no floating-point, LSX, or LASX register file.  Keep the
+ * generic signal, ptrace, and scheduler call sites linkable without placing
+ * any unsupported instructions in the kernel image.
+ */
+SYM_FUNC_START(_init_fpu)
+	jr	ra
+SYM_FUNC_END(_init_fpu)
+
+SYM_FUNC_START(_save_fp)
+	jr	ra
+SYM_FUNC_END(_save_fp)
+
+SYM_FUNC_START(_restore_fp)
+	jr	ra
+SYM_FUNC_END(_restore_fp)
+
+SYM_FUNC_START(_save_fp_context)
+	move	a0, zero
+	jr	ra
+SYM_FUNC_END(_save_fp_context)
+
+SYM_FUNC_START(_restore_fp_context)
+	move	a0, zero
+	jr	ra
+SYM_FUNC_END(_restore_fp_context)
+
+SYM_FUNC_START(_save_lsx)
+	jr	ra
+SYM_FUNC_END(_save_lsx)
+
+SYM_FUNC_START(_restore_lsx)
+	jr	ra
+SYM_FUNC_END(_restore_lsx)
+
+SYM_FUNC_START(_init_lsx_upper)
+	jr	ra
+SYM_FUNC_END(_init_lsx_upper)
+
+SYM_FUNC_START(_restore_lsx_upper)
+	jr	ra
+SYM_FUNC_END(_restore_lsx_upper)
+
+SYM_FUNC_START(_save_lsx_context)
+	move	a0, zero
+	jr	ra
+SYM_FUNC_END(_save_lsx_context)
+
+SYM_FUNC_START(_restore_lsx_context)
+	move	a0, zero
+	jr	ra
+SYM_FUNC_END(_restore_lsx_context)
+
+SYM_FUNC_START(_save_lasx)
+	jr	ra
+SYM_FUNC_END(_save_lasx)
+
+SYM_FUNC_START(_restore_lasx)
+	jr	ra
+SYM_FUNC_END(_restore_lasx)
+
+SYM_FUNC_START(_init_lasx_upper)
+	jr	ra
+SYM_FUNC_END(_init_lasx_upper)
+
+SYM_FUNC_START(_restore_lasx_upper)
+	jr	ra
+SYM_FUNC_END(_restore_lasx_upper)
+
+SYM_FUNC_START(_save_lasx_context)
+	move	a0, zero
+	jr	ra
+SYM_FUNC_END(_save_lasx_context)
+
+SYM_FUNC_START(_restore_lasx_context)
+	move	a0, zero
+	jr	ra
+SYM_FUNC_END(_restore_lasx_context)
+
+#else
+
 #define FPU_REG_WIDTH		8
 #define LSX_REG_WIDTH		16
 #define LASX_REG_WIDTH		32
@@ -654,3 +736,4 @@ STACK_FRAME_NON_STANDARD _restore_lsx
 STACK_FRAME_NON_STANDARD _restore_lasx
 #endif
 #endif
+#endif /* CONFIG_32BIT_REDUCED */

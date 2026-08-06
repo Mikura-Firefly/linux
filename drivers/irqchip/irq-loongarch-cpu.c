@@ -122,6 +122,7 @@ static int __init liointc_parse_madt(union acpi_subtable_headers *header,
 	return liointc_acpi_init(irq_domain, liointc_entry);
 }
 
+#ifndef CONFIG_32BIT_REDUCED
 static int __init eiointc_parse_madt(union acpi_subtable_headers *header,
 					const unsigned long end)
 {
@@ -129,6 +130,7 @@ static int __init eiointc_parse_madt(union acpi_subtable_headers *header,
 
 	return eiointc_acpi_init(irq_domain, eiointc_entry);
 }
+#endif
 
 static int __init acpi_cascade_irqdomain_init(void)
 {
@@ -138,9 +140,11 @@ static int __init acpi_cascade_irqdomain_init(void)
 	if (r < 0)
 		return r;
 
+#ifndef CONFIG_32BIT_REDUCED
 	r = acpi_table_parse_madt(ACPI_MADT_TYPE_EIO_PIC, eiointc_parse_madt, 0);
 	if (r < 0)
 		return r;
+#endif
 
 	if (cpu_has_avecint)
 		r = avecintc_acpi_init(irq_domain);

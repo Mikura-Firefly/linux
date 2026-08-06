@@ -68,12 +68,19 @@ SYM_CODE_START(handle_tlb_load)
 
 vmalloc_done_load:
 	/* Get PGD offset in bytes */
-#ifdef CONFIG_32BIT
+#ifdef CONFIG_32BIT_REDUCED
+	/* LA32R lacks BSTRPICK and ALSL. */
+	srli.w		ra, t0, PGDIR_SHIFT
+	andi		ra, ra, (PTRS_PER_PGD - 1)
+	slli.w		ra, ra, _PGD_T_LOG2
+	add.w		t1, ra, t1
+#elif defined(CONFIG_32BIT)
 	PTR_BSTRPICK	ra, t0, 31, PGDIR_SHIFT
+	PTR_ALSL	t1, ra, t1, _PGD_T_LOG2
 #else
 	PTR_BSTRPICK	ra, t0, PTRS_PER_PGD_BITS + PGDIR_SHIFT - 1, PGDIR_SHIFT
-#endif
 	PTR_ALSL	t1, ra, t1, _PGD_T_LOG2
+#endif
 
 #if CONFIG_PGTABLE_LEVELS > 3
 	PTR_L		t1, t1, 0
@@ -94,12 +101,23 @@ vmalloc_done_load:
 	 * instead contains the tlb pte. Check the PAGE_HUGE bit and
 	 * see if we need to jump to huge tlb processing.
 	 */
+#ifdef CONFIG_32BIT_REDUCED
+	/* Test PAGE_HUGE without rotating the PMD, then index the PTE page. */
+	andi		t1, ra, _PAGE_HUGE
+	bne		t1, zero, tlb_huge_update_load
+	csrrd		t0, LOONGARCH_CSR_BADV
+	srli.w		t0, t0, PAGE_SHIFT
+	andi		t0, t0, (PTRS_PER_PTE - 1)
+	slli.w		t0, t0, _PTE_T_LOG2
+	add.w		t1, t0, ra
+#else
 	PTR_ROTRI	ra, ra, _PAGE_HUGE_SHIFT + 1
 	bltz		ra, tlb_huge_update_load
 
 	PTR_ROTRI	ra, ra, BITS_PER_LONG - (_PAGE_HUGE_SHIFT + 1)
 	PTR_BSTRPICK	t0, t0, PTRS_PER_PTE_BITS + PAGE_SHIFT - 1, PAGE_SHIFT
 	PTR_ALSL	t1, t0, ra, _PTE_T_LOG2
+#endif
 
 #ifdef CONFIG_SMP
 smp_pgtable_change_load:
@@ -120,7 +138,11 @@ smp_pgtable_change_load:
 #endif
 
 	tlbsrch
+#ifdef CONFIG_32BIT_REDUCED
+	ori		t1, zero, (1 << _PTE_T_LOG2)
+#else
 	PTR_BSTRINS	t1, zero, _PTE_T_LOG2, _PTE_T_LOG2
+#endif
 	PTR_L		t0, t1, 0
 	PTR_L		t1, t1, _PTE_T_SIZE
 	csrwr		t0, LOONGARCH_CSR_TLBELO0
@@ -140,7 +162,7 @@ vmalloc_load:
 tlb_huge_update_load:
 #ifdef CONFIG_SMP
 	PTE_LL		ra, t1, 0
-#else
+#elif !defined(CONFIG_32BIT_REDUCED)
 	PTR_ROTRI	ra, ra, BITS_PER_LONG - (_PAGE_HUGE_SHIFT + 1)
 #endif
 	andi		t0, ra, _PAGE_PRESENT
@@ -231,12 +253,19 @@ SYM_CODE_START(handle_tlb_store)
 
 vmalloc_done_store:
 	/* Get PGD offset in bytes */
-#ifdef CONFIG_32BIT
+#ifdef CONFIG_32BIT_REDUCED
+	/* LA32R lacks BSTRPICK and ALSL. */
+	srli.w		ra, t0, PGDIR_SHIFT
+	andi		ra, ra, (PTRS_PER_PGD - 1)
+	slli.w		ra, ra, _PGD_T_LOG2
+	add.w		t1, ra, t1
+#elif defined(CONFIG_32BIT)
 	PTR_BSTRPICK	ra, t0, 31, PGDIR_SHIFT
+	PTR_ALSL	t1, ra, t1, _PGD_T_LOG2
 #else
 	PTR_BSTRPICK	ra, t0, PTRS_PER_PGD_BITS + PGDIR_SHIFT - 1, PGDIR_SHIFT
-#endif
 	PTR_ALSL	t1, ra, t1, _PGD_T_LOG2
+#endif
 
 #if CONFIG_PGTABLE_LEVELS > 3
 	PTR_L		t1, t1, 0
@@ -255,12 +284,23 @@ vmalloc_done_store:
 	 * instead contains the tlb pte. Check the PAGE_HUGE bit and
 	 * see if we need to jump to huge tlb processing.
 	 */
+#ifdef CONFIG_32BIT_REDUCED
+	/* Test PAGE_HUGE without rotating the PMD, then index the PTE page. */
+	andi		t1, ra, _PAGE_HUGE
+	bne		t1, zero, tlb_huge_update_store
+	csrrd		t0, LOONGARCH_CSR_BADV
+	srli.w		t0, t0, PAGE_SHIFT
+	andi		t0, t0, (PTRS_PER_PTE - 1)
+	slli.w		t0, t0, _PTE_T_LOG2
+	add.w		t1, t0, ra
+#else
 	PTR_ROTRI	ra, ra, _PAGE_HUGE_SHIFT + 1
 	bltz		ra, tlb_huge_update_store
 
 	PTR_ROTRI	ra, ra, BITS_PER_LONG - (_PAGE_HUGE_SHIFT + 1)
 	PTR_BSTRPICK	t0, t0, PTRS_PER_PTE_BITS + PAGE_SHIFT - 1, PAGE_SHIFT
 	PTR_ALSL	t1, t0, ra, _PTE_T_LOG2
+#endif
 
 #ifdef CONFIG_SMP
 smp_pgtable_change_store:
@@ -293,7 +333,11 @@ smp_pgtable_change_store:
 	PTR_S		t0, t1, 0
 #endif
 	tlbsrch
+#ifdef CONFIG_32BIT_REDUCED
+	ori		t1, zero, (1 << _PTE_T_LOG2)
+#else
 	PTR_BSTRINS	t1, zero, _PTE_T_LOG2, _PTE_T_LOG2
+#endif
 	PTR_L		t0, t1, 0
 	PTR_L		t1, t1, _PTE_T_SIZE
 	csrwr		t0, LOONGARCH_CSR_TLBELO0
@@ -313,7 +357,7 @@ vmalloc_store:
 tlb_huge_update_store:
 #ifdef CONFIG_SMP
 	PTE_LL		ra, t1, 0
-#else
+#elif !defined(CONFIG_32BIT_REDUCED)
 	PTR_ROTRI	ra, ra, BITS_PER_LONG - (_PAGE_HUGE_SHIFT + 1)
 #endif
 
@@ -419,12 +463,19 @@ SYM_CODE_START(handle_tlb_modify)
 
 vmalloc_done_modify:
 	/* Get PGD offset in bytes */
-#ifdef CONFIG_32BIT
+#ifdef CONFIG_32BIT_REDUCED
+	/* LA32R lacks BSTRPICK and ALSL. */
+	srli.w		ra, t0, PGDIR_SHIFT
+	andi		ra, ra, (PTRS_PER_PGD - 1)
+	slli.w		ra, ra, _PGD_T_LOG2
+	add.w		t1, ra, t1
+#elif defined(CONFIG_32BIT)
 	PTR_BSTRPICK	ra, t0, 31, PGDIR_SHIFT
+	PTR_ALSL	t1, ra, t1, _PGD_T_LOG2
 #else
 	PTR_BSTRPICK	ra, t0, PTRS_PER_PGD_BITS + PGDIR_SHIFT - 1, PGDIR_SHIFT
-#endif
 	PTR_ALSL	t1, ra, t1, _PGD_T_LOG2
+#endif
 
 #if CONFIG_PGTABLE_LEVELS > 3
 	PTR_L		t1, t1, 0
@@ -443,12 +494,23 @@ vmalloc_done_modify:
 	 * instead contains the tlb pte. Check the PAGE_HUGE bit and
 	 * see if we need to jump to huge tlb processing.
 	 */
+#ifdef CONFIG_32BIT_REDUCED
+	/* Test PAGE_HUGE without rotating the PMD, then index the PTE page. */
+	andi		t1, ra, _PAGE_HUGE
+	bne		t1, zero, tlb_huge_update_modify
+	csrrd		t0, LOONGARCH_CSR_BADV
+	srli.w		t0, t0, PAGE_SHIFT
+	andi		t0, t0, (PTRS_PER_PTE - 1)
+	slli.w		t0, t0, _PTE_T_LOG2
+	add.w		t1, t0, ra
+#else
 	PTR_ROTRI	ra, ra, _PAGE_HUGE_SHIFT + 1
 	bltz		ra, tlb_huge_update_modify
 
 	PTR_ROTRI	ra, ra, BITS_PER_LONG - (_PAGE_HUGE_SHIFT + 1)
 	PTR_BSTRPICK	t0, t0, PTRS_PER_PTE_BITS + PAGE_SHIFT - 1, PAGE_SHIFT
 	PTR_ALSL	t1, t0, ra, _PTE_T_LOG2
+#endif
 
 #ifdef CONFIG_SMP
 smp_pgtable_change_modify:
@@ -479,7 +541,11 @@ smp_pgtable_change_modify:
 	PTR_S		t0, t1, 0
 #endif
 	tlbsrch
+#ifdef CONFIG_32BIT_REDUCED
+	ori		t1, zero, (1 << _PTE_T_LOG2)
+#else
 	PTR_BSTRINS	t1, zero, _PTE_T_LOG2, _PTE_T_LOG2
+#endif
 	PTR_L		t0, t1, 0
 	PTR_L		t1, t1, _PTE_T_SIZE
 	csrwr		t0, LOONGARCH_CSR_TLBELO0
@@ -499,7 +565,7 @@ vmalloc_modify:
 tlb_huge_update_modify:
 #ifdef CONFIG_SMP
 	PTE_LL		ra, t1, 0
-#else
+#elif !defined(CONFIG_32BIT_REDUCED)
 	PTR_ROTRI	ra, ra, BITS_PER_LONG - (_PAGE_HUGE_SHIFT + 1)
 #endif
 

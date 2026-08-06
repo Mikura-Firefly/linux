@@ -91,7 +91,11 @@ SYM_CODE_END(except_vec_cex)
 	.endm
 
 	.macro	build_prep_fcsr
+#ifdef CONFIG_32BIT_REDUCED
+	move	a1, zero
+#else
 	movfcsr2gr	a1, fcsr0
+#endif
 	.endm
 
 	.macro	build_prep_none
