@@ -138,7 +138,7 @@ struct rx_desc {
 
 struct dmfe_private {
 	u32			chip_id;
-	struct net_device	*next_dev;
+	struct net_device	*dev;
 	spinlock_t		lock;
 
 	void			*ioaddr;
@@ -514,9 +514,9 @@ static void dmfe_hw_init(struct net_device *dev)
 
 	send_filter_frame(dev, mc_count);	/* DM9102/DM9102A */
 
-	/* Init CR7, interrupt active bit */
-	tp->cr7_data = CR7_DEFAULT;
-	writel(tp->cr7_data, tp->ioaddr + CSR7);
+	/* U-Boot polls this FPGA MAC; avoid its unreliable interrupt path. */
+	tp->cr7_data = 0;
+	writel(0, tp->ioaddr + CSR7);
 
 	/* Init CR15, Tx jabber and Rx watchdog timer */
 	//	writel(tp->cr15_data, ioaddr + CSR15);
@@ -543,12 +543,8 @@ static int dmfe_open(struct net_device *dev)
     printk("dmfe_open===============================================>\n");
 #endif
 
-	ret = request_irq(dev->irq, &dmfe_interrupt, IRQF_SHARED, dev->name, dev);
-	if (ret) {
-		printk("dmfe request_irq for %s failed\n", dev->name);
-		goto no_irq;
-	}
-	netdev_info(dev, "IRQ %d registered\n", dev->irq);
+	tp->dev = dev;
+	netdev_info(dev, "using polling mode\n");
 
 	/* Initiliaze Transmit/Receive decriptor and CR3/4 */
 	tp->rx_avail_cnt = 0;
@@ -574,10 +570,8 @@ static int dmfe_open(struct net_device *dev)
 	netdev_info(dev, "MAC registers initialized\n");
 	netif_wake_queue(dev);
 //	init_timer(&tp->timer);
-	data1 = (unsigned long)dev;
-//	tp->timer.data = (unsigned long)dev;
 	timer_setup(&tp->timer, dmfe_timer, 0);
-	/* The legacy PHY state machine is not wired to this FPGA MAC. */
+	mod_timer(&tp->timer, jiffies + 1);
 
 	spin_unlock_irqrestore(&tp->lock, flags);
 	netdev_info(dev, "device open complete\n");
@@ -588,8 +582,6 @@ static int dmfe_open(struct net_device *dev)
 	return ret;
 
 no_desc:
-	free_irq(dev->irq, dev);
-no_irq:
 	return ret;
 }
 
@@ -612,7 +604,6 @@ static int dmfe_close(struct net_device *dev)
 	spin_unlock_irqrestore(&tp->lock, flags);
 
 	timer_delete_sync(&tp->timer);
-	free_irq(dev->irq, dev);
 	dmfe_descriptor_free(dev);
 
 #ifdef DBG_FLAG
@@ -755,7 +746,7 @@ static int dmfe_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	spin_lock_irqsave(&tp->lock, flags);
-	writel(tp->cr7_data | 0x01, tp->ioaddr + CSR7);
+	writel(0, tp->ioaddr + CSR7);
 	tx = tp->cpu_cur_tx;
 	tp->cpu_cur_tx = tx->next_desc;
 	tp->tx_avail_cnt--;
@@ -1243,68 +1234,21 @@ static void send_filter_frame2(struct net_device *dev, int mc_cnt)
 static void dmfe_timer(struct timer_list *t)
 {
 	struct dmfe_private *tp = timer_container_of(tp, t, timer);
-	struct net_device *dev = (struct net_device*)data1;
-	unsigned char 		tmp_cr12;
-	unsigned long 		flags;
-	int			link_status;
-	u32            csr0_val,csr8_val,csr7_val,csr5_val;
-	u32            csr6_val,csr3_val,csr4_val;
-	u32            csr9_val,csr10_val,csr11_val;
+	struct net_device *dev = tp->dev;
+	unsigned long flags;
+	u32 status;
 
-	csr0_val = dr32(CSR0);
-	csr3_val = dr32(CSR3);
-	csr4_val = dr32(CSR4);
 	spin_lock_irqsave(&tp->lock, flags);
-	phy_read(tp->ioaddr, tp->phy_addr, 0x01, tp->chip_id);
-	link_status = phy_read(tp->ioaddr, tp->phy_addr, 0x01, tp->chip_id) & 0x4;
-	tmp_cr12 = link_status ? 0x3 : 0;
-	csr5_val = dr32(CSR5);
-	csr6_val = dr32(CSR6);
-	csr7_val = dr32(CSR7);
-	csr8_val = dr32(CSR8);
-#ifdef DBG_FLAG
-	printk("dmfe_timer===>start,CRS5:%x,CRS6:%x,CRS7:%x,CRS8:%x,tp->rx_avail_cnt:%d\n",csr5_val,csr6_val,csr7_val,csr8_val,tp->rx_avail_cnt);
-	printk("dmfe_timer===>start,link_status:%x,tmp_cr12:%x,tp->phy_addr:%x,tp->link_failed:%d\n",link_status,tmp_cr12,tp->phy_addr,tp->link_failed);
-#endif
-
-	/* Operating Mode Check */
-	if ( (tp->dm910x_chk_mode & 0x1) && (dev->stats.rx_packets > MAX_CHECK_PACKET) )
-		tp->dm910x_chk_mode = 0x4;
-
-	if ( (!(tmp_cr12 & 0x3)) && (!tp->link_failed) ) {
-		/* Link Failed */
-		printk("dev %x:Link Failed %x\n", tp->phy_addr, link_status);
-		tp->link_failed = 1;
-
-		/* For Force 10/100M Half/Full mode: Enable Auto-Nego mode */
-		/* AUTO or force 1M Homerun/Longrun don't need */
-		if ( !(tp->media_mode & 0x38) )
-			phy_write(tp->ioaddr, tp->phy_addr, 0, 0x1000, tp->chip_id);
-
-		/* AUTO mode */
-		if (tp->media_mode & DMFE_AUTO) {
-			/* 10/100M link failed */
-			tp->cr6_data&=~0x00000200;      /* bit9=0, HD mode */
-			update_csr6(tp->cr6_data, tp->ioaddr);
-		}
-	} else if ((tmp_cr12 & 0x3) && tp->link_failed) {
-		printk("dev %x:Link OK %x", tp->phy_addr,link_status);
-		tp->link_failed = 0;
-
-		/* Auto Sense Speed */
-		if ((tp->media_mode & DMFE_AUTO) && dmfe_sense_speed(dev) )
-			tp->link_failed = 1;
-		dmfe_process_mode(dev);
-		SHOW_MEDIA_TYPE(tp->op_mode);
-	}
-
+	status = dr32(CSR5);
+	if (status)
+		dw32(CSR5, status);
+	dmfe_rx_clean(dev);
+	dmfe_tx_clean(dev);
+	if (tp->rx_avail_cnt < RX_DESC_CNT)
+		allocate_rx_buffer(dev);
 	spin_unlock_irqrestore(&tp->lock, flags);
-	tp->timer.expires = DMFE_TIMER_WUT + HZ * 2; //jiffies + TIMEOUT;
-	add_timer(&tp->timer);
 
-#ifdef DBG_FLAG
-    printk("dmfe_timer===================================>end\n");
-#endif
+	mod_timer(&tp->timer, jiffies + max_t(unsigned long, 1, HZ / 100));
 }
 
 /*
