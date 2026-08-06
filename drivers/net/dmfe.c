@@ -580,6 +580,7 @@ static int dmfe_open(struct net_device *dev)
 	/* The legacy PHY state machine is not wired to this FPGA MAC. */
 
 	spin_unlock_irqrestore(&tp->lock, flags);
+	netdev_info(dev, "device open complete\n");
 
 #ifdef DBG_FLAG
 	printk("dmfe_open===============================================>test1\n");
@@ -626,6 +627,8 @@ static void dmfe_set_filter_mode(struct net_device *dev)
 	unsigned long		flags;
 	int mc_count = netdev_mc_count(dev);
 
+	netdev_info(dev, "configuring receive filter\n");
+
 #ifdef DBG_FLAG
 	printk("dmfe_set_filter_mode===============================================>begin,dev->flags:%d\n",dev->flags);
 #endif
@@ -649,6 +652,7 @@ static void dmfe_set_filter_mode(struct net_device *dev)
 	send_filter_frame(dev, mc_count);
 out:
 	spin_unlock_irqrestore(&tp->lock, flags);
+	netdev_info(dev, "receive filter configured\n");
 
 #ifdef DBG_FLAG
 	printk("dmfe_set_filter_mode===============================================>end\n");
