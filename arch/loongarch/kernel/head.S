@@ -185,6 +185,7 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	PTR_S		a1, t0, 0
 	la.pcrel	t0, fw_arg2
 	PTR_S		a2, t0, 0
+	LA32R_EARLY_MARK	0x52		# 'R': firmware arguments are saved
 
 #if defined(CONFIG_PAGE_SIZE_4KB) && !defined(CONFIG_32BIT_REDUCED)
 	LONG_LI		t0, 0
@@ -201,6 +202,7 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	PTR_LI		sp, (_THREAD_SIZE - PT_SIZE)
 	PTR_ADD		sp, sp, tp
 	set_saved_sp	sp, t0, t1
+	LA32R_EARLY_MARK	0x53		# 'S': early stack is established
 
 #ifdef CONFIG_RELOCATABLE
 
@@ -224,6 +226,7 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	bl		kasan_early_init
 #endif
 
+	LA32R_EARLY_MARK	0x54		# 'T': entering start_kernel
 	bl		start_kernel
 	ASM_BUG()
 
