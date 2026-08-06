@@ -53,7 +53,8 @@ SYM_CODE_START(la32r_exception_entry)
 	andi	t1, t1, 0x3f
 	beq	t1, zero, 1f
 	la_abs	t0, exception_handlers
-	slli.w	t1, t1, 7		/* VECSIZE is 128 bytes */
+	/* VECSIZE is 0x200 bytes: select the ECODE handler slot. */
+	slli.w	t1, t1, 9
 	add.w	t0, t0, t1
 	jirl	zero, t0, 0
 1:
