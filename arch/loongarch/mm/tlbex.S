@@ -24,6 +24,43 @@
 #define PTE_SC	sc.d
 #endif
 
+/*
+ * la32r_exception_entry saves t0..t2 before it software-dispatches an
+ * ordinary exception.  The TLB fast paths must retain those saved user
+ * registers, so keep their link register in t2 rather than reusing KS2.
+ * The regular LoongArch exception entry reaches these paths directly and
+ * continues to use the established KS0..KS2 convention.
+ */
+	.macro TLB_FASTPATH_SAVE
+#ifdef CONFIG_32BIT_REDUCED
+	move		t2, ra
+#else
+	csrwr		t0, EXCEPTION_KS0
+	csrwr		t1, EXCEPTION_KS1
+	csrwr		ra, EXCEPTION_KS2
+#endif
+	.endm
+
+	.macro TLB_FASTPATH_RETURN
+	csrrd		t0, EXCEPTION_KS0
+	csrrd		t1, EXCEPTION_KS1
+#ifdef CONFIG_32BIT_REDUCED
+	move		ra, t2
+	csrrd		t2, EXCEPTION_KS2
+#else
+	csrrd		ra, EXCEPTION_KS2
+#endif
+	ertn
+	.endm
+
+	.macro TLB_FASTPATH_FAULT_RA
+#ifdef CONFIG_32BIT_REDUCED
+	move		ra, t2
+#else
+	csrrd		ra, EXCEPTION_KS2
+#endif
+	.endm
+
 	.macro tlb_do_page_fault, write
 	SYM_CODE_START(tlb_do_page_fault_\write)
 	UNWIND_HINT_UNDEFINED
@@ -55,9 +92,7 @@ SYM_CODE_END(handle_tlb_protect)
 
 SYM_CODE_START(handle_tlb_load)
 	UNWIND_HINT_UNDEFINED
-	csrwr		t0, EXCEPTION_KS0
-	csrwr		t1, EXCEPTION_KS1
-	csrwr		ra, EXCEPTION_KS2
+	TLB_FASTPATH_SAVE
 
 	/*
 	 * The vmalloc handling is not in the hotpath.
@@ -151,10 +186,7 @@ smp_pgtable_change_load:
 	csrwr		t1, LOONGARCH_CSR_TLBELO1
 	tlbwr
 
-	csrrd		t0, EXCEPTION_KS0
-	csrrd		t1, EXCEPTION_KS1
-	csrrd		ra, EXCEPTION_KS2
-	ertn
+	TLB_FASTPATH_RETURN
 
 vmalloc_load:
 	la_abs		t1, swapper_pg_dir
@@ -220,14 +252,11 @@ tlb_huge_update_load:
 	PTR_LI		t1, (PS_DEFAULT_SIZE << (CSR_TLBIDX_PS_SHIFT))
 	csrxchg		t1, t0, LOONGARCH_CSR_TLBIDX
 
-	csrrd		t0, EXCEPTION_KS0
-	csrrd		t1, EXCEPTION_KS1
-	csrrd		ra, EXCEPTION_KS2
-	ertn
+	TLB_FASTPATH_RETURN
 
 nopage_tlb_load:
 	dbar		0x700
-	csrrd		ra, EXCEPTION_KS2
+	TLB_FASTPATH_FAULT_RA
 	la_abs		t0, tlb_do_page_fault_0
 	jr		t0
 SYM_CODE_END(handle_tlb_load)
@@ -242,9 +271,7 @@ SYM_CODE_END(handle_tlb_load_ptw)
 
 SYM_CODE_START(handle_tlb_store)
 	UNWIND_HINT_UNDEFINED
-	csrwr		t0, EXCEPTION_KS0
-	csrwr		t1, EXCEPTION_KS1
-	csrwr		ra, EXCEPTION_KS2
+	TLB_FASTPATH_SAVE
 
 	/*
 	 * The vmalloc handling is not in the hotpath.
@@ -348,10 +375,7 @@ smp_pgtable_change_store:
 	csrwr		t1, LOONGARCH_CSR_TLBELO1
 	tlbwr
 
-	csrrd		t0, EXCEPTION_KS0
-	csrrd		t1, EXCEPTION_KS1
-	csrrd		ra, EXCEPTION_KS2
-	ertn
+	TLB_FASTPATH_RETURN
 
 vmalloc_store:
 	la_abs		t1, swapper_pg_dir
@@ -432,14 +456,11 @@ tlb_huge_update_store:
 	PTR_LI		t1, (PS_DEFAULT_SIZE << (CSR_TLBIDX_PS_SHIFT))
 	csrxchg		t1, t0, LOONGARCH_CSR_TLBIDX
 
-	csrrd		t0, EXCEPTION_KS0
-	csrrd		t1, EXCEPTION_KS1
-	csrrd		ra, EXCEPTION_KS2
-	ertn
+	TLB_FASTPATH_RETURN
 
 nopage_tlb_store:
 	dbar		0x700
-	csrrd		ra, EXCEPTION_KS2
+	TLB_FASTPATH_FAULT_RA
 	la_abs		t0, tlb_do_page_fault_1
 	jr		t0
 SYM_CODE_END(handle_tlb_store)
@@ -454,9 +475,7 @@ SYM_CODE_END(handle_tlb_store_ptw)
 
 SYM_CODE_START(handle_tlb_modify)
 	UNWIND_HINT_UNDEFINED
-	csrwr		t0, EXCEPTION_KS0
-	csrwr		t1, EXCEPTION_KS1
-	csrwr		ra, EXCEPTION_KS2
+	TLB_FASTPATH_SAVE
 
 	/*
 	 * The vmalloc handling is not in the hotpath.
@@ -558,10 +577,7 @@ smp_pgtable_change_modify:
 	csrwr		t1, LOONGARCH_CSR_TLBELO1
 	tlbwr
 
-	csrrd		t0, EXCEPTION_KS0
-	csrrd		t1, EXCEPTION_KS1
-	csrrd		ra, EXCEPTION_KS2
-	ertn
+	TLB_FASTPATH_RETURN
 
 vmalloc_modify:
 	la_abs		t1, swapper_pg_dir
@@ -640,14 +656,11 @@ tlb_huge_update_modify:
 	PTR_LI		t1, (PS_DEFAULT_SIZE << (CSR_TLBIDX_PS_SHIFT))
 	csrxchg		t1, t0, LOONGARCH_CSR_TLBIDX
 
-	csrrd		t0, EXCEPTION_KS0
-	csrrd		t1, EXCEPTION_KS1
-	csrrd		ra, EXCEPTION_KS2
-	ertn
+	TLB_FASTPATH_RETURN
 
 nopage_tlb_modify:
 	dbar		0x700
-	csrrd		ra, EXCEPTION_KS2
+	TLB_FASTPATH_FAULT_RA
 	la_abs		t0, tlb_do_page_fault_1
 	jr		t0
 SYM_CODE_END(handle_tlb_modify)
