@@ -253,21 +253,7 @@ static struct net_device *dmfe_init_one(struct device *device, void *base_addr, 
 	dev->netdev_ops = &dmfe_netdev_ops;
 
 	spin_lock_init(&tp->lock);
-	if(ether_set)
-		memcpy(dev->dev_addr, hwaddr, ETH_ALEN);
-	else {
-		//dev->dev_addr[0] = 0x00;
-		//dev->dev_addr[1] = 0x00;
-		//dev->dev_addr[2] = 0x6c;
-		//get_random_bytes(&dev->dev_addr[3], 3);
-
-		dev->dev_addr[0] = 0x00;
-		dev->dev_addr[1] = 0x98;
-		dev->dev_addr[2] = 0x76;
-		dev->dev_addr[3] = 0x64;
-		dev->dev_addr[4] = 0x32;
-		dev->dev_addr[5] = 0x19;
-	}
+	eth_hw_addr_set(dev, hwaddr);
 	//dev->dev_addr[5] += irq-DMFE1_IRQ;
 
 	strcpy(dev->name, "eth%d");
@@ -1155,8 +1141,7 @@ static void send_filter_frame(struct net_device *dev,int mc_cnt)
 	tx = tp->cpu_cur_tx;
 	suptr = (u32 *) tx->tx_buf_ptr;
 
-	for (i = 0; i < 6; i++)
-		dev->dev_addr[i] = hwaddr[i];
+	eth_hw_addr_set(dev, hwaddr);
 
 	/* Node address */
 	addrptr = (u16 *) dev->dev_addr;
@@ -1261,7 +1246,7 @@ static void send_filter_frame2(struct net_device *dev, int mc_cnt)
 
 static void dmfe_timer(struct timer_list *t)
 {
-	struct dmfe_private *tp = from_timer(tp, t, timer);
+	struct dmfe_private *tp = timer_container_of(tp, t, timer);
 	struct net_device *dev = (struct net_device*)data1;
 	unsigned char 		tmp_cr12;
 	unsigned long 		flags;
@@ -1637,14 +1622,13 @@ out_release_region:
 	return ret;
 }
 
-static int dmfe_pltfr_remove(struct platform_device *pdev)
+static void dmfe_pltfr_remove(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_region(res->start, DMFE_IO_SIZE);
+	release_mem_region(res->start, resource_size(res));
 	dmfe_remove_one(ndev);
-	return 0;
 }
 
 #ifdef CONFIG_OF
