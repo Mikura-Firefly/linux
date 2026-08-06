@@ -487,40 +487,26 @@ static void dmfe_hw_init(struct net_device *dev)
 	//writel(DMFE_RESET | tmp, ioaddr + CSR0);
 	//udelay(1000);
 
-	/* Reset DM910x MAC controller */
-	tp->cr0_data = CR0_DEFAULT;
-	dw32(CSR0, DM910X_RESET);	/* RESET MAC */
-	udelay(1000);
-
-
-#ifdef CONFIG_SOC_MAC_HARDWARE_ACCELERATE
-	writel(1, tp->ioaddr + CSR10);
-#endif
-	dw32(CSR0, tp->cr0_data);
-	udelay(5);
-
-	tmp = dr32(CSR0);
+	/* Match the reset sequence used by the working U-Boot dc2114x driver. */
+	tmp = readl(ioaddr + CSR0);
+	mdelay(1);
+	writel(tmp | DM910X_RESET, ioaddr + CSR0);
+	mdelay(1);
+	writel(tmp, ioaddr + CSR0);
+	mdelay(1);
+	for (tmp = 0; tmp < 5; tmp++) {
+		readl(ioaddr + CSR0);
+		mdelay(10);
+	}
 	//writel(0, tp->ioaddr + CSR0);
 	//udelay(5);
 
 	writel(tp->rx_desc_dma_head, tp->ioaddr+CSR3);
 	writel(tp->tx_desc_dma_head, tp->ioaddr+CSR4);
 
-	tp->media_mode = DMFE_100MFD;  // DMFE_AUTO;
-	//tp->media_mode = DMFE_10MFD;  // DMFE_AUTO;
-
-	if (dev->irq == DMFE1_IRQ) {
-		dmfe_set_phyxcer(dev);
-	}
-	/* Media Mode Process */
-	if (!(tp->media_mode & DMFE_AUTO))
-		tp->op_mode = tp->media_mode; 	/* Force Mode */
-
-	tp->cr5_data = readl(ioaddr + CSR5);
-	writel(tp->cr5_data, ioaddr + CSR5);
-
-	/* Init CR6 to program DM910x operation */
-	update_csr6(tp->cr6_data, tp->ioaddr+CSR6);
+	/* The FPGA MAC is a non-PCI dc2114x and needs SDP plus port select. */
+	tp->cr6_data = 0x02040000 | CR6_RXSC | CR6_TXSC;
+	update_csr6(tp->cr6_data, ioaddr + CSR6);
 
 	send_filter_frame(dev, mc_count);	/* DM9102/DM9102A */
 
@@ -531,10 +517,6 @@ static void dmfe_hw_init(struct net_device *dev)
 	/* Init CR15, Tx jabber and Rx watchdog timer */
 	//	writel(tp->cr15_data, ioaddr + CSR15);
 
-	/* Enable DM910X Tx/Rx function */
-	tp->cr6_data |= CR6_RXSC | CR6_TXSC | 0x40000 | CR6_PM;  // | CR6_PBF;
-	//tp->cr6_data |= CR6_RXSC | CR6_TXSC | 0x40000;
-	update_csr6(tp->cr6_data, tp->ioaddr+CSR6);
 #ifdef DBG_FLAG
 	printk("dmfe_hw_init===============================================>end\n");
 #endif
@@ -547,7 +529,7 @@ static int dmfe_open(struct net_device *dev)
 	unsigned long 		flags;
 	int ret;
 
-	tp->cr6_data = 0x32003002;
+	tp->cr6_data = 0;
 	tp->cr0_data = 0;
 	tp->PHY_reg4 = 0x1E0;
 	tp->link_failed = 1;
@@ -587,10 +569,7 @@ static int dmfe_open(struct net_device *dev)
 	data1 = (unsigned long)dev;
 //	tp->timer.data = (unsigned long)dev;
 	timer_setup(&tp->timer, dmfe_timer, 0);
-	tp->timer.expires = jiffies + TIMEOUT;
-//	tp->timer.data = (unsigned long)dev;
-//	tp->timer.function = &dmfe_timer;
-	add_timer(&tp->timer);
+	/* The legacy PHY state machine is not wired to this FPGA MAC. */
 
 	spin_unlock_irqrestore(&tp->lock, flags);
 
@@ -1321,12 +1300,8 @@ static void dmfe_timer(struct timer_list *t)
  */
 static void update_csr6(u32 val, void *ioaddr)
 {
-	writel((val & (~0x2002)), ioaddr);
-	udelay(5);
-	//writel((val | 0x2002), ioaddr);
-	writel((val | 0x602002), ioaddr);
-	
-	udelay(5);
+	writel(val, ioaddr);
+	readl(ioaddr);
 }
 
 static u8 dmfe_sense_speed(struct net_device *dev)
