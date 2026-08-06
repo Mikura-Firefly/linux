@@ -237,9 +237,11 @@ static void cpu_probe_common(struct cpuinfo_loongarch *c)
 	}
 #endif
 
+#ifndef CONFIG_32BIT_REDUCED
 	config = read_cpucfg(LOONGARCH_CPUCFG6);
 	if (config & CPUCFG6_PMP)
 		c->options |= LOONGARCH_CPU_PMP;
+#endif
 
 	config = csr_read32(LOONGARCH_CSR_ASID);
 	config = (config & CSR_ASID_BIT) >> CSR_ASID_BIT_SHIFT;
@@ -396,8 +398,14 @@ void cpu_probe(void)
 	set_elf_platform(cpu, "loongarch");
 
 	c->cputype	= CPU_UNKNOWN;
+#ifdef CONFIG_32BIT_REDUCED
+	/* CPUCFG.0 and CPUCFG.2.FPVERS are undefined in the reduced profile. */
+	c->processor_id = 0;
+	c->fpu_vers = 0;
+#else
 	c->processor_id = read_cpucfg(LOONGARCH_CPUCFG0);
 	c->fpu_vers     = (read_cpucfg(LOONGARCH_CPUCFG2) & CPUCFG2_FPVERS) >> 3;
+#endif
 
 	c->fpu_csr0	= FPU_CSR_RN;
 	c->fpu_mask	= FPU_CSR_RSVD;

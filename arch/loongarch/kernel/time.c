@@ -25,6 +25,15 @@ EXPORT_SYMBOL(cpu_clock_freq);
 u64 const_clock_freq;
 EXPORT_SYMBOL(const_clock_freq);
 
+#ifdef CONFIG_32BIT_REDUCED
+/*
+ * CPUCFG.2/.4/.5 frequency fields are not part of the LA32R reduced
+ * profile.  The Chiplab loongson-soc wires the stable counter and TCFG
+ * timer to clk_pll_33's 33 MHz CPU clock.
+ */
+#define LA32R_CONST_CLOCK_HZ	33000000UL
+#endif
+
 static DEFINE_RAW_SPINLOCK(state_lock);
 static DEFINE_PER_CPU(struct clock_event_device, constant_clockevent_device);
 
@@ -144,14 +153,20 @@ void sync_counter(void)
 int constant_clockevent_init(void)
 {
 	unsigned int cpu = smp_processor_id();
-#ifdef CONFIG_PREEMPT_RT
-	unsigned long min_delta = 100;
-#else
 	unsigned long min_delta = 1000;
-#endif
+#ifdef CONFIG_32BIT_REDUCED
+	/* TCFG has a 32-bit counter; retain the downstream-safe 31-bit range. */
+	unsigned long max_delta = (1UL << 31) - 1;
+#else
 	unsigned long max_delta = GENMASK_ULL(boot_cpu_data.timerbits, 0);
+#endif
 	struct clock_event_device *cd;
 	static int irq = 0, timer_irq_installed = 0;
+
+
+#ifdef CONFIG_PREEMPT_RT
+	min_delta = 100;
+#endif
 
 	if (!timer_irq_installed) {
 		irq = get_percpu_irq(INT_TI);
@@ -233,10 +248,15 @@ int __init constant_clocksource_init(void)
 
 void __init time_init(void)
 {
+#ifdef CONFIG_32BIT_REDUCED
+	const_clock_freq = LA32R_CONST_CLOCK_HZ;
+	cpu_clock_freq = LA32R_CONST_CLOCK_HZ;
+#else
 	if (!cpu_has_cpucfg)
 		const_clock_freq = cpu_clock_freq;
 	else
 		const_clock_freq = calc_const_freq();
+#endif
 
 	init_offset = -(get_cycles() - csr_read(LOONGARCH_CSR_CNTC));
 
