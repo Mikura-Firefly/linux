@@ -116,6 +116,24 @@ SYM_FUNC_START(la32r_panic_debug)
 	ret
 SYM_FUNC_END(la32r_panic_debug)
 
+/* Emit the original synchronous fault state before generic Oops handling. */
+SYM_FUNC_START(la32r_oops_debug)
+	li.w	t5, 0x4f		# 'O'
+	LA32R_EARLY_PUTC t5
+	LA32R_EARLY_HEX a0		# ESTAT
+	li.w	t5, 0x3a
+	LA32R_EARLY_PUTC t5
+	LA32R_EARLY_HEX a1		# ERA
+	li.w	t5, 0x3a
+	LA32R_EARLY_PUTC t5
+	LA32R_EARLY_HEX a2		# BADV
+	li.w	t5, 0x0d
+	LA32R_EARLY_PUTC t5
+	li.w	t5, 0x0a
+	LA32R_EARLY_PUTC t5
+	ret
+SYM_FUNC_END(la32r_oops_debug)
+
 SYM_CODE_START(kernel_entry)			# kernel entry point
 	UNWIND_HINT_END_OF_STACK
 
