@@ -1182,7 +1182,12 @@ static void send_filter_frame(struct net_device *dev,int mc_cnt)
 	dw32(CSR1, 0x1);	/* Issue Tx polling */
 	update_csr6(tp->cr6_data, tp->ioaddr + CSR6);
 	netif_trans_update(dev);
-	while (tx->tdes0 & cpu_to_le32(0x80000000));
+	for (i = 0; i < TOUT_LOOP; i++) {
+		if (!(le32_to_cpu(READ_ONCE(tx->tdes0)) & BIT(31)))
+			return;
+		cpu_relax();
+	}
+	netdev_warn(dev, "setup frame completion timed out\n");
 }
 
 static void send_filter_frame2(struct net_device *dev, int mc_cnt)
