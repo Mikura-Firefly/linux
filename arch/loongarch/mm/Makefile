@@ -8,6 +8,7 @@ obj-y				+= init.o cache.o tlb.o tlbex.o extable.o \
 				   page.o pageattr.o
 
 obj-$(CONFIG_HIGHMEM)		+= highmem.o
+obj-$(CONFIG_32BIT_REDUCED)	+= dma-noncoherent.o
 obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o
 obj-$(CONFIG_KASAN)		+= kasan_init.o
 

@@ -241,6 +241,11 @@ choice
 
 config 32BIT_REDUCED
 	bool "32-bit kernel for LA32R"
+	select ARCH_HAS_DMA_PREP_COHERENT
+	select ARCH_HAS_DMA_SET_UNCACHED
+	select ARCH_HAS_SETUP_DMA_OPS
+	select ARCH_HAS_SYNC_DMA_FOR_CPU
+	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
 	help
 	  Select this option if you want to build a 32-bit kernel for
 	  LoongArch32 Reduced (LA32R).
