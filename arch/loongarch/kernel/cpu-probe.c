@@ -347,6 +347,23 @@ static inline void cpu_probe_loongson(struct cpuinfo_loongarch *c, unsigned int 
 		c->options |= LOONGARCH_CPU_HYPERVISOR;
 }
 
+#ifdef CONFIG_32BIT_REDUCED
+/*
+ * The LA32R reduced profile defines CPUCFG.1 and later, but not CPUCFG.0.
+ * CPUCFG reads of undefined words return zero, so there is no PRID/company
+ * field to feed through the full Loongson CPU identification path.
+ */
+static void cpu_probe_la32r_reduced(struct cpuinfo_loongarch *c, unsigned int cpu)
+{
+	if (!(c->isa_level & LOONGARCH_CPU_ISA_LA32R))
+		pr_warn("LA32R reduced configuration lacks the LA32R ISA bit\n");
+
+	c->cputype = CPU_LOONGSON32;
+	__cpu_family[cpu] = "Chiplab LA32R";
+	__cpu_full_name[cpu] = "Chiplab LA32R";
+}
+#endif
+
 #ifdef CONFIG_64BIT
 /* For use by uaccess.h */
 u64 __ua_limit;
@@ -389,6 +406,12 @@ void cpu_probe(void)
 
 	per_cpu_trap_init(cpu);
 
+	/* CPUCFG.0 is architecturally undefined on the reduced LA32R profile. */
+#ifdef CONFIG_32BIT_REDUCED
+	if (!c->processor_id) {
+		cpu_probe_la32r_reduced(c, cpu);
+	} else
+#endif
 	switch (c->processor_id & PRID_COMP_MASK) {
 	case PRID_COMP_LOONGSON:
 		cpu_probe_loongson(c, cpu);
