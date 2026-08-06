@@ -139,7 +139,9 @@ smp_pgtable_change_load:
 
 	tlbsrch
 #ifdef CONFIG_32BIT_REDUCED
-	ori		t1, zero, (1 << _PTE_T_LOG2)
+	/* BSTRINS t1, zero, n, n clears bit n in the PTE pointer. */
+	addi.w		t0, zero, -(1 << _PTE_T_LOG2) - 1
+	and		t1, t1, t0
 #else
 	PTR_BSTRINS	t1, zero, _PTE_T_LOG2, _PTE_T_LOG2
 #endif
@@ -334,7 +336,9 @@ smp_pgtable_change_store:
 #endif
 	tlbsrch
 #ifdef CONFIG_32BIT_REDUCED
-	ori		t1, zero, (1 << _PTE_T_LOG2)
+	/* BSTRINS t1, zero, n, n clears bit n in the PTE pointer. */
+	addi.w		t0, zero, -(1 << _PTE_T_LOG2) - 1
+	and		t1, t1, t0
 #else
 	PTR_BSTRINS	t1, zero, _PTE_T_LOG2, _PTE_T_LOG2
 #endif
@@ -542,7 +546,9 @@ smp_pgtable_change_modify:
 #endif
 	tlbsrch
 #ifdef CONFIG_32BIT_REDUCED
-	ori		t1, zero, (1 << _PTE_T_LOG2)
+	/* BSTRINS t1, zero, n, n clears bit n in the PTE pointer. */
+	addi.w		t0, zero, -(1 << _PTE_T_LOG2) - 1
+	and		t1, t1, t0
 #else
 	PTR_BSTRINS	t1, zero, _PTE_T_LOG2, _PTE_T_LOG2
 #endif
