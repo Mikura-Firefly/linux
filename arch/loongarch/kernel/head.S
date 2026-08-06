@@ -99,6 +99,23 @@ SYM_DATA(kernel_fsize, .long _kernel_fsize);
 	bge	t2, zero, .Learly_hex_loop\@
 	.endm
 
+/*
+ * Bring-up-only panic diagnostic.  This deliberately bypasses the regular
+ * console, which may not be usable at the first panic.  DMW1 keeps the UART
+ * reachable at this point, and the helper touches only caller-saved
+ * registers.
+ */
+SYM_FUNC_START(la32r_panic_debug)
+	li.w	t5, 0x52		# 'R'
+	LA32R_EARLY_PUTC t5
+	LA32R_EARLY_HEX a0
+	li.w	t5, 0x0d
+	LA32R_EARLY_PUTC t5
+	li.w	t5, 0x0a
+	LA32R_EARLY_PUTC t5
+	ret
+SYM_FUNC_END(la32r_panic_debug)
+
 SYM_CODE_START(kernel_entry)			# kernel entry point
 	UNWIND_HINT_END_OF_STACK
 
