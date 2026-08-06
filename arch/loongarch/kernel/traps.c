@@ -54,12 +54,6 @@
 
 #include "access-helper.h"
 
-#ifdef CONFIG_32BIT_REDUCED
-/* Temporary LA32R bring-up hook; implemented in kernel/head.S. */
-extern void la32r_oops_debug(unsigned long estat, unsigned long era,
-			     unsigned long badv);
-#endif
-
 void *exception_table[EXCCODE_INT_START] = {
 	[0 ... EXCCODE_INT_START - 1] = handle_reserved,
 
@@ -408,9 +402,6 @@ void die(const char *str, struct pt_regs *regs)
 	int ret;
 	static int die_counter;
 
-#ifdef CONFIG_32BIT_REDUCED
-	la32r_oops_debug(regs->csr_estat, regs->csr_era, regs->csr_badvaddr);
-#endif
 	oops_enter();
 
 	ret = notify_die(DIE_OOPS, str, regs, 0,

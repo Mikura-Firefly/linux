@@ -163,14 +163,6 @@ static void __kprobes do_sigsegv(struct pt_regs *regs,
 			(unsigned long) regs->regs[1]);
 		print_vma_addr(KERN_CONT " ", regs->regs[1]);
 		pr_cont("\n");
-		pr_info("gpr: sp=%08lx tp=%08lx a0=%08lx a1=%08lx a2=%08lx a3=%08lx\n",
-			(unsigned long)regs->regs[3], (unsigned long)regs->regs[2],
-			(unsigned long)regs->regs[4], (unsigned long)regs->regs[5],
-			(unsigned long)regs->regs[6], (unsigned long)regs->regs[7]);
-		pr_info("gpr: a4=%08lx a5=%08lx a6=%08lx a7=%08lx t0=%08lx t1=%08lx\n",
-			(unsigned long)regs->regs[8], (unsigned long)regs->regs[9],
-			(unsigned long)regs->regs[10], (unsigned long)regs->regs[11],
-			(unsigned long)regs->regs[12], (unsigned long)regs->regs[13]);
 	}
 	force_sig_fault(SIGSEGV, si_code, (void __user *)address);
 }

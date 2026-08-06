@@ -40,11 +40,6 @@
 #include <trace/events/error_report.h>
 #include <asm/sections.h>
 
-#ifdef CONFIG_32BIT_REDUCED
-/* Temporary LA32R bring-up hook; implemented in arch/loongarch/kernel/head.S. */
-extern void la32r_panic_debug(unsigned long caller);
-#endif
-
 #define PANIC_TIMER_STEP 100
 #define PANIC_BLINK_SPD 18
 #define PANIC_MSG_BUFSZ 1024
@@ -789,10 +784,6 @@ void panic(const char *fmt, ...)
 	va_list args;
 
 	va_start(args, fmt);
-#ifdef CONFIG_32BIT_REDUCED
-	/* The regular console is not available at the current boot milestone. */
-	la32r_panic_debug((unsigned long)__builtin_return_address(0));
-#endif
 	vpanic(fmt, args);
 	va_end(args);
 }

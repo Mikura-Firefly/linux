@@ -313,7 +313,6 @@ static int dmfe_descriptor_init(struct net_device *dev)
 
 	dev->dev.coherent_dma_mask = 0xffffffffUL;
 	dev->dev.dma_mask  = &mask_all;
-	netdev_info(dev, "allocating descriptor ring\n");
 	tp->tx_desc_head = (struct tx_desc*)dma_alloc_coherent(&dev->dev, sizeof(struct tx_desc)*DESC_ALL_CNT + 0x20, &tp->tx_desc_dma_head, GFP_KERNEL);
 	if (tp->tx_desc_head == NULL) {
 		ret = -ENOMEM;
@@ -327,9 +326,6 @@ static int dmfe_descriptor_init(struct net_device *dev)
 	//}
 	tp->rx_desc_head = (void *)tp->tx_desc_head + sizeof(struct tx_desc) * TX_DESC_CNT;
 	tp->rx_desc_dma_head = tp->tx_desc_dma_head + sizeof(struct tx_desc) * TX_DESC_CNT;
-	netdev_info(dev, "descriptor ring DMA address %pad\n", &tp->tx_desc_dma_head);
-
-	netdev_info(dev, "allocating transmit buffers\n");
 	tp->buf_pool_ptr = dma_alloc_coherent(&dev->dev,TX_BUF_ALLOC * TX_DESC_CNT + 4,&tp->buf_pool_dma_ptr, GFP_KERNEL);
 	if (!tp->buf_pool_ptr) {
 		ret = -ENOMEM;
@@ -404,7 +400,6 @@ static int dmfe_descriptor_init(struct net_device *dev)
 		rx = rx->next_desc;
 		tp->rx_avail_cnt++;
 	}
-	netdev_info(dev, "DMA rings initialized\n");
 	return ret;
 
 no_rx_buf:
@@ -537,15 +532,11 @@ static int dmfe_open(struct net_device *dev)
 	tp->cr0_data = 0;
 	tp->PHY_reg4 = 0x1E0;
 	tp->link_failed = 1;
-	netdev_info(dev, "opening device\n");
-
 #ifdef DBG_FLAG
     printk("dmfe_open===============================================>\n");
 #endif
 
 	tp->dev = dev;
-	netdev_info(dev, "using polling mode\n");
-
 	/* Initiliaze Transmit/Receive decriptor and CR3/4 */
 	tp->rx_avail_cnt = 0;
 	tp->tx_avail_cnt = 0;
@@ -564,18 +555,14 @@ static int dmfe_open(struct net_device *dev)
 	tp->cr0_data = 0;
 	tp->dm910x_chk_mode = 1;
 
-	netdev_info(dev, "initializing MAC registers\n");
 	spin_lock_irqsave(&tp->lock, flags);
 	dmfe_hw_init(dev);
-	netdev_info(dev, "MAC registers initialized\n");
 	netif_wake_queue(dev);
 //	init_timer(&tp->timer);
 	timer_setup(&tp->timer, dmfe_timer, 0);
 	mod_timer(&tp->timer, jiffies + 1);
 
 	spin_unlock_irqrestore(&tp->lock, flags);
-	netdev_info(dev, "device open complete\n");
-
 #ifdef DBG_FLAG
 	printk("dmfe_open===============================================>test1\n");
 #endif
@@ -618,8 +605,6 @@ static void dmfe_set_filter_mode(struct net_device *dev)
 	unsigned long		flags;
 	int mc_count = netdev_mc_count(dev);
 
-	netdev_info(dev, "configuring receive filter\n");
-
 #ifdef DBG_FLAG
 	printk("dmfe_set_filter_mode===============================================>begin,dev->flags:%d\n",dev->flags);
 #endif
@@ -643,8 +628,6 @@ static void dmfe_set_filter_mode(struct net_device *dev)
 	send_filter_frame(dev, mc_count);
 out:
 	spin_unlock_irqrestore(&tp->lock, flags);
-	netdev_info(dev, "receive filter configured\n");
-
 #ifdef DBG_FLAG
 	printk("dmfe_set_filter_mode===============================================>end\n");
 #endif

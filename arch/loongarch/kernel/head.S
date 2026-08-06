@@ -65,87 +65,10 @@ SYM_DATA(kernel_fsize, .long _kernel_fsize);
 	st.b	t1, t0, 3		/* LCR: 8N1, divisor latch off */
 	.endm
 
-	.macro LA32R_EARLY_MARK value
-	li.w	t0, 0x9fe00000
-1:
-	ld.b	t1, t0, 5
-	andi	t1, t1, 0x20
-	beq	t1, zero, 1b
-	li.w	t1, \value
-	st.b	t1, t0, 0
-	.endm
-
-	.macro LA32R_EARLY_PUTC reg
-	li.w	t0, 0x9fe00000
-.Learly_putc_wait\@:
-	ld.b	t1, t0, 5
-	andi	t1, t1, 0x20
-	beq	t1, zero, .Learly_putc_wait\@
-	st.b	\reg, t0, 0
-	.endm
-
-	.macro LA32R_EARLY_HEX reg
-	li.w	t2, 28
-.Learly_hex_loop\@:
-	srl.w	t3, \reg, t2
-	andi	t3, t3, 0xf
-	sltui	t4, t3, 10
-	addi.w	t5, t3, 0x30
-	bne	t4, zero, .Learly_hex_emit\@
-	addi.w	t5, t3, 0x57
-.Learly_hex_emit\@:
-	LA32R_EARLY_PUTC t5
-	addi.w	t2, t2, -4
-	bge	t2, zero, .Learly_hex_loop\@
-	.endm
-
-/*
- * Bring-up-only panic diagnostic.  This deliberately bypasses the regular
- * console, which may not be usable at the first panic.  DMW1 keeps the UART
- * reachable at this point, and the helper touches only caller-saved
- * registers.
- */
-SYM_FUNC_START(la32r_panic_debug)
-	li.w	t5, 0x52		# 'R'
-	LA32R_EARLY_PUTC t5
-	LA32R_EARLY_HEX a0
-	li.w	t5, 0x0d
-	LA32R_EARLY_PUTC t5
-	li.w	t5, 0x0a
-	LA32R_EARLY_PUTC t5
-	ret
-SYM_FUNC_END(la32r_panic_debug)
-
-/* Emit the original synchronous fault state before generic Oops handling. */
-SYM_FUNC_START(la32r_oops_debug)
-	li.w	t5, 0x4f		# 'O'
-	LA32R_EARLY_PUTC t5
-	LA32R_EARLY_HEX a0		# ESTAT
-	li.w	t5, 0x3a
-	LA32R_EARLY_PUTC t5
-	LA32R_EARLY_HEX a1		# ERA
-	li.w	t5, 0x3a
-	LA32R_EARLY_PUTC t5
-	LA32R_EARLY_HEX a2		# BADV
-	li.w	t5, 0x0d
-	LA32R_EARLY_PUTC t5
-	li.w	t5, 0x0a
-	LA32R_EARLY_PUTC t5
-	ret
-SYM_FUNC_END(la32r_oops_debug)
-
 SYM_CODE_START(kernel_entry)			# kernel entry point
 	UNWIND_HINT_END_OF_STACK
 
-	/* Replace U-Boot's exception vectors before touching any kernel state. */
-	la.pcrel	t0, la32r_early_exception
-	csrwr	t0, LOONGARCH_CSR_EENTRY
-	csrwr	t0, LOONGARCH_CSR_TLBRENTRY
-	csrwr	zero, LOONGARCH_CSR_ECFG
-
 	LA32R_EARLY_UART_INIT
-	LA32R_EARLY_MARK	0x41		# 'A': entered kernel
-	LA32R_EARLY_MARK	0x43		# 'C': immediately before DMW setup
 #ifdef CONFIG_32BIT_REDUCED
 	/*
 	 * The Chiplab LA32R core lacks the PC-relative instructions used by the
@@ -157,17 +80,12 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	csrwr		t0, LOONGARCH_CSR_DMWIN0
 	PTR_LI		t0, 0x80000001
 	csrwr		t0, LOONGARCH_CSR_DMWIN1
-	LA32R_EARLY_MARK	0x44		# 'D': DMW setup completed
-	LA32R_EARLY_MARK	0x42		# 'B': immediately before PG enable
 	SETUP_MODES	t0
-	LA32R_EARLY_MARK	0x50		# 'P': executing through the DMWs
 #else
 	SETUP_TWINS
-	LA32R_EARLY_MARK	0x44		# 'D': DMW setup completed
 	SETUP_MODES	t0
 	JUMP_VIRT_ADDR	t0, t1
 	SETUP_DMWINS	t0
-	LA32R_EARLY_MARK	0x42		# 'B': DMWs are installed
 #endif
 
 	la.pcrel	t0, __bss_start		# clear .bss
@@ -177,7 +95,6 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	PTR_ADDI	t0, t0, LONGSIZE
 	LONG_S		zero, t0, 0
 	bne		t0, t1, 1b
-	LA32R_EARLY_MARK	0x51		# 'Q': BSS is clear
 
 	la.pcrel	t0, fw_arg0
 	PTR_S		a0, t0, 0		# firmware arguments
@@ -185,7 +102,6 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	PTR_S		a1, t0, 0
 	la.pcrel	t0, fw_arg2
 	PTR_S		a2, t0, 0
-	LA32R_EARLY_MARK	0x52		# 'R': firmware arguments are saved
 
 #if defined(CONFIG_PAGE_SIZE_4KB) && !defined(CONFIG_32BIT_REDUCED)
 	LONG_LI		t0, 0
@@ -202,7 +118,6 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	PTR_LI		sp, (_THREAD_SIZE - PT_SIZE)
 	PTR_ADD		sp, sp, tp
 	set_saved_sp	sp, t0, t1
-	LA32R_EARLY_MARK	0x53		# 'S': early stack is established
 
 #ifdef CONFIG_RELOCATABLE
 
@@ -226,46 +141,10 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	bl		kasan_early_init
 #endif
 
-	LA32R_EARLY_MARK	0x54		# 'T': entering start_kernel
 	bl		start_kernel
 	ASM_BUG()
 
 SYM_CODE_END(kernel_entry)
-
-	/*
-	 * Bring-up-only trap sink.  It deliberately uses no stack or memory and
-	 * reports ESTAT, ERA, TLBRERA and BADV through the already known UART.
-	 */
-	.align 12
-SYM_CODE_START(la32r_early_exception)
-	csrrd	s0, LOONGARCH_CSR_ESTAT
-	csrrd	s1, LOONGARCH_CSR_ERA
-	csrrd	s2, LOONGARCH_CSR_TLBRERA
-	csrrd	s3, LOONGARCH_CSR_BADV
-
-	li.w	t5, 0x0d
-	LA32R_EARLY_PUTC t5
-	li.w	t5, 0x0a
-	LA32R_EARLY_PUTC t5
-	li.w	t5, 0x45		# 'E'
-	LA32R_EARLY_PUTC t5
-	LA32R_EARLY_HEX s0
-	li.w	t5, 0x3a		# ':'
-	LA32R_EARLY_PUTC t5
-	LA32R_EARLY_HEX s1
-	li.w	t5, 0x3a
-	LA32R_EARLY_PUTC t5
-	LA32R_EARLY_HEX s2
-	li.w	t5, 0x3a
-	LA32R_EARLY_PUTC t5
-	LA32R_EARLY_HEX s3
-	li.w	t5, 0x0d
-	LA32R_EARLY_PUTC t5
-	li.w	t5, 0x0a
-	LA32R_EARLY_PUTC t5
-1:
-	b	1b
-SYM_CODE_END(la32r_early_exception)
 
 #ifdef CONFIG_SMP
 
