@@ -110,7 +110,9 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 
 	LA32R_EARLY_UART_INIT
 	LA32R_EARLY_MARK	0x41		# 'A': entered kernel
+	LA32R_EARLY_MARK	0x43		# 'C': immediately before DMW setup
 	SETUP_TWINS
+	LA32R_EARLY_MARK	0x44		# 'D': DMW setup completed
 	SETUP_MODES	t0
 	JUMP_VIRT_ADDR	t0, t1
 	SETUP_DMWINS	t0
