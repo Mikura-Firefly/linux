@@ -623,7 +623,7 @@ static int dmfe_close(struct net_device *dev)
 	phy_write(tp->ioaddr, tp->phy_addr, 0, 0x8000, tp->chip_id);
 	spin_unlock_irqrestore(&tp->lock, flags);
 
-	del_timer_sync(&tp->timer);
+	timer_delete_sync(&tp->timer);
 	free_irq(dev->irq, dev);
 	dmfe_descriptor_free(dev);
 
