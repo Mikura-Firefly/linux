@@ -9,6 +9,7 @@
 #include <linux/hugetlb.h>
 #include <linux/export.h>
 
+#include <asm/addrspace.h>
 #include <asm/bootinfo.h>
 #include <asm/cpu.h>
 #include <asm/exception.h>
@@ -277,7 +278,13 @@ static void setup_tlb_handler(int cpu)
 
 	/* The tlb handlers are generated only once */
 	if (cpu == 0) {
-		memcpy((void *)tlbrentry, handle_tlb_refill, 0x80);
+		void *handler = (void *)tlbrentry;
+
+#ifdef CONFIG_32BIT_REDUCED
+		/* TLBRENTRY fetches physical memory, bypassing the data cache. */
+		handler = (void *)TO_UNCACHE(__pa(tlbrentry));
+#endif
+		memcpy(handler, handle_tlb_refill, 0x80);
 		local_flush_icache_range(tlbrentry, tlbrentry + 0x80);
 
 		for (int i = EXCCODE_TLBL; i <= EXCCODE_TLBPE; i++)
@@ -302,7 +309,8 @@ static void setup_tlb_handler(int cpu)
 
 		addr = page_address(page);
 		pcpu_handlers[cpu] = (unsigned long)addr;
-		memcpy((void *)addr, (void *)eentry, vec_sz);
+		memcpy((void *)TO_UNCACHE(__pa((unsigned long)addr)),
+		       (void *)eentry, vec_sz);
 		local_flush_icache_range((unsigned long)addr, (unsigned long)addr + vec_sz);
 		csr_write64(pcpu_handlers[cpu], LOONGARCH_CSR_EENTRY);
 		csr_write64(pcpu_handlers[cpu], LOONGARCH_CSR_MERRENTRY);

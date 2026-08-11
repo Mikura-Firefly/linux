@@ -1181,7 +1181,13 @@ void per_cpu_trap_init(int cpu)
 /* Install CPU exception handler */
 void set_handler(unsigned long offset, void *addr, unsigned long size)
 {
-	memcpy((void *)(eentry + offset), addr, size);
+	void *handler = (void *)(eentry + offset);
+
+#ifdef CONFIG_32BIT_REDUCED
+	/* The separate LA32R I-cache cannot observe cached vector stores. */
+	handler = (void *)TO_UNCACHE(__pa(eentry + offset));
+#endif
+	memcpy(handler, addr, size);
 	local_flush_icache_range(eentry + offset, eentry + offset + size);
 }
 
