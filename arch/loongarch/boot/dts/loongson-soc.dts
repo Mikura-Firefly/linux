@@ -77,5 +77,23 @@
 			reg = <0x1fd0f040 0x8>;
 			status = "okay";
 		};
+
+		keyboard@1fd0f024 {
+			compatible = "loongson-edu,matrix-keypad";
+			reg = <0x1fd0f024 0x4>;
+			keypad,num-rows = <4>;
+			keypad,num-columns = <4>;
+			/*
+			 * Matrix keymap placeholder: adjust row/col to the actual board
+			 * silkscreen labels before relying on it for DOOM.
+			 * KEY(row, col, keycode) encoded as (row<<24)|(col<<16)|keycode.
+			 */
+			linux,keymap = <
+				0x00000011 0x0001001e 0x0002001f 0x00030020
+				0x01000067 0x0101006c 0x01020069 0x0103006a
+				0x02000039 0x0201001d 0x0202002a 0x0203001c
+				0x03000001 0x0301000f 0x0302000e 0x03030061>;
+			status = "okay";
+		};
 	};
 };

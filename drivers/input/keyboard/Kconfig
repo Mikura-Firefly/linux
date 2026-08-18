@@ -27,6 +27,15 @@ config KEYBOARD_ADC
 	  To compile this driver as a module, choose M here: the
 	  module will be called adc_keys.
 
+config KEYBOARD_LOONGSON_SOC_MATRIX
+	tristate "Loongson SoC 4x4 matrix keypad"
+	depends on INPUT_KEYBOARD && (MACH_LOONGSON32 || COMPILE_TEST)
+	select INPUT_MATRIXKMAP
+	help
+	  Say Y here to enable the 4x4 matrix keypad on the Loongson
+	  Education SoC FPGA platform. The CONFREG block scans the matrix
+	  and exposes a 16-bit pressed-key bitmask at 0x1fd0f024.
+
 config KEYBOARD_LOONGSON_SOC_PS2
 	tristate "Loongson SoC PS/2 keyboard"
 	depends on INPUT_KEYBOARD && (MACH_LOONGSON32 || COMPILE_TEST)
