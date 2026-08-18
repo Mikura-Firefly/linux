@@ -150,7 +150,11 @@ static void loongson_soc_vga_destroy(struct fb_info *info)
 
 static const struct fb_ops loongson_soc_vga_ops = {
 	.owner		= THIS_MODULE,
-	FB_DEFAULT_IOMEM_OPS,
+	.fb_read	= fb_sys_read,
+	.fb_write	= fb_sys_write,
+	.fb_fillrect	= sys_fillrect,
+	.fb_copyarea	= sys_copyarea,
+	.fb_imageblit	= sys_imageblit,
 	.fb_destroy	= loongson_soc_vga_destroy,
 	.fb_setcolreg	= loongson_soc_vga_setcolreg,
 	.fb_pan_display	= loongson_soc_vga_pan_display,

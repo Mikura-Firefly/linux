@@ -1793,7 +1793,7 @@ config FB_LOONGSON_SOC_VGA
 	tristate "Loongson SoC VGA framebuffer support"
 	depends on FB && (MACH_LOONGSON32 || COMPILE_TEST)
 	select APERTURE_HELPERS
-	select FB_IOMEM_HELPERS
+	select FB_SYSMEM_HELPERS
 	help
 	  Say Y here to enable the VGA framebuffer driver for the Loongson
 	  Education SoC FPGA platform. The driver programs the VGA/DMA
