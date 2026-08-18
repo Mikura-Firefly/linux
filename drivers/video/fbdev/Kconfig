@@ -1789,6 +1789,17 @@ config FB_SIMPLE
 	  Configuration re: surface address, size, and format must be provided
 	  through device tree, or plain old platform data.
 
+config FB_LOONGSON_SOC_VGA
+	tristate "Loongson SoC VGA framebuffer support"
+	depends on FB && (MACH_LOONGSON32 || COMPILE_TEST)
+	select APERTURE_HELPERS
+	select FB_IOMEM_HELPERS
+	help
+	  Say Y here to enable the VGA framebuffer driver for the Loongson
+	  Education SoC FPGA platform. The driver programs the VGA/DMA
+	  controller at 0x1fe90000 and exposes the 640x480 RGB565 framebuffer
+	  as /dev/fb0.
+
 config FB_SSD1307
 	tristate "Solomon SSD1307 framebuffer support"
 	depends on FB && I2C

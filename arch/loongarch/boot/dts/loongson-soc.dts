@@ -20,6 +20,17 @@
 		reg = <0x00000000 0x08000000>;
 	};
 
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		framebuffer: framebuffer@6000000 {
+			reg = <0x06000000 0x00800000>;
+			no-map;
+		};
+	};
+
 	cpu_intc: interrupt-controller {
 		compatible = "loongson,cpu-interrupt-controller";
 		interrupt-controller;
@@ -51,6 +62,13 @@
 			interrupt-parent = <&cpu_intc>;
 			interrupts = <1>;
 			local-mac-address = [00 98 76 64 32 19];
+			status = "okay";
+		};
+
+		vga@1fe90000 {
+			compatible = "loongson-edu,vga";
+			reg = <0x1fe90000 0x1000>;
+			memory-region = <&framebuffer>;
 			status = "okay";
 		};
 	};
