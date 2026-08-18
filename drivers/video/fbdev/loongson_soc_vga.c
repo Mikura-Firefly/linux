@@ -216,6 +216,7 @@ static int loongson_soc_vga_probe(struct platform_device *pdev)
 		.smem_start	= mem->start,
 		.smem_len	= VGA_FB_TOTAL,
 		.line_length	= VGA_STRIDE,
+		.ypanstep	= 1,
 	};
 
 	info->var = (struct fb_var_screeninfo) {
