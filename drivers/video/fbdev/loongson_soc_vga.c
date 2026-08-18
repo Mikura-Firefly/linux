@@ -8,6 +8,10 @@
  *   0x04 FB_STRIDE bytes per line
  *   0x08 CTRL      bit0: enable framebuffer/DMA
  *   0x0C STATUS    read-only status
+ *
+ * The framebuffer is kept in cached memory and explicitly written back
+ * with CACOP before it is scanned out. Double buffering is exposed through
+ * FBIOPAN_DISPLAY (yoffset 0 or 480).
  */
 #include <linux/aperture.h>
 #include <linux/errno.h>
@@ -18,6 +22,8 @@
 #include <linux/of.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
+#include <linux/timer.h>
+#include <asm/cacheflush.h>
 
 #define VGA_FB_ADDR		0x00
 #define VGA_FB_STRIDE		0x04
@@ -30,16 +36,40 @@
 #define VGA_YRES		480
 #define VGA_BPP			16
 #define VGA_STRIDE		(VGA_XRES * VGA_BPP / 8)
+#define VGA_FB_BYTES		(VGA_XRES * VGA_YRES * VGA_BPP / 8)
+#define VGA_FB_BUFFERS		2
+#define VGA_FB_TOTAL		(VGA_FB_BYTES * VGA_FB_BUFFERS)
+#define VGA_FLUSH_INTERVAL_MS	16
 
 #define PSEUDO_PALETTE_SIZE	16
 
 struct loongson_soc_vga_par {
 	void __iomem *regs;
+	struct device *dev;
+	struct fb_info *info;
 	unsigned long fb_phys;
 	unsigned long fb_size;
+	unsigned long visible_phys;
 	struct resource *mem;
+	struct timer_list flush_timer;
+	unsigned long flush_jiffies;
 	u32 palette[PSEUDO_PALETTE_SIZE];
 };
+
+static void loongson_soc_vga_flush(struct fb_info *info, unsigned long phys,
+				   size_t size)
+{
+	struct loongson_soc_vga_par *par = info->par;
+	unsigned long addr = (unsigned long)info->screen_base +
+			     (phys - par->fb_phys);
+	unsigned long end = addr + size;
+
+	addr &= ~0xful;
+	for (; addr < end; addr += 16)
+		cache_op(Hit_Writeback_Inv_LEAF1, addr);
+
+	asm volatile("dbar 0" ::: "memory");
+}
 
 static int loongson_soc_vga_setcolreg(u_int regno, u_int red, u_int green,
 				      u_int blue, u_int transp,
@@ -68,6 +98,42 @@ static int loongson_soc_vga_setcolreg(u_int regno, u_int red, u_int green,
 	return 0;
 }
 
+static int loongson_soc_vga_sync(struct fb_info *info)
+{
+	struct loongson_soc_vga_par *par = info->par;
+
+	loongson_soc_vga_flush(info, par->visible_phys, VGA_FB_BYTES);
+	return 0;
+}
+
+static int loongson_soc_vga_pan_display(struct fb_var_screeninfo *var,
+					struct fb_info *info)
+{
+	struct loongson_soc_vga_par *par = info->par;
+	unsigned int yoffset = var->yoffset;
+	unsigned long phys;
+
+	if (yoffset != 0 && yoffset != VGA_YRES)
+		return -EINVAL;
+
+	phys = par->fb_phys + (unsigned long)yoffset * VGA_STRIDE;
+	loongson_soc_vga_flush(info, phys, VGA_FB_BYTES);
+	writel(lower_32_bits(phys), par->regs + VGA_FB_ADDR);
+	par->visible_phys = phys;
+	info->var.yoffset = yoffset;
+
+	return 0;
+}
+
+static void loongson_soc_vga_flush_timer(struct timer_list *t)
+{
+	struct loongson_soc_vga_par *par = timer_container_of(par, t, flush_timer);
+	struct fb_info *info = par->info;
+
+	loongson_soc_vga_flush(info, par->visible_phys, VGA_FB_BYTES);
+	mod_timer(&par->flush_timer, jiffies + par->flush_jiffies);
+}
+
 static void loongson_soc_vga_destroy(struct fb_info *info)
 {
 	struct loongson_soc_vga_par *par = info->par;
@@ -87,6 +153,8 @@ static const struct fb_ops loongson_soc_vga_ops = {
 	FB_DEFAULT_IOMEM_OPS,
 	.fb_destroy	= loongson_soc_vga_destroy,
 	.fb_setcolreg	= loongson_soc_vga_setcolreg,
+	.fb_pan_display	= loongson_soc_vga_pan_display,
+	.fb_sync	= loongson_soc_vga_sync,
 };
 
 static int loongson_soc_vga_probe(struct platform_device *pdev)
@@ -132,8 +200,11 @@ static int loongson_soc_vga_probe(struct platform_device *pdev)
 
 	par = info->par;
 	par->regs = regs;
+	par->dev = dev;
+	par->info = info;
 	par->fb_phys = mem->start;
-	par->fb_size = resource_size(mem);
+	par->visible_phys = mem->start;
+	par->fb_size = VGA_FB_TOTAL;
 	if (mem != &fb_res)
 		par->mem = mem;
 
@@ -143,7 +214,7 @@ static int loongson_soc_vga_probe(struct platform_device *pdev)
 		.visual		= FB_VISUAL_TRUECOLOR,
 		.accel		= FB_ACCEL_NONE,
 		.smem_start	= mem->start,
-		.smem_len	= resource_size(mem),
+		.smem_len	= VGA_FB_TOTAL,
 		.line_length	= VGA_STRIDE,
 	};
 
@@ -151,7 +222,7 @@ static int loongson_soc_vga_probe(struct platform_device *pdev)
 		.xres		= VGA_XRES,
 		.yres		= VGA_YRES,
 		.xres_virtual	= VGA_XRES,
-		.yres_virtual	= VGA_YRES,
+		.yres_virtual	= VGA_YRES * VGA_FB_BUFFERS,
 		.bits_per_pixel	= VGA_BPP,
 		.red		= { .offset = 11, .length = 5 },
 		.green		= { .offset = 5, .length = 6 },
@@ -162,7 +233,7 @@ static int loongson_soc_vga_probe(struct platform_device *pdev)
 		.vmode		= FB_VMODE_NONINTERLACED,
 	};
 
-	info->screen_base = ioremap_wc(mem->start, resource_size(mem));
+	info->screen_base = ioremap_cache(mem->start, VGA_FB_TOTAL);
 	if (!info->screen_base) {
 		ret = -ENOMEM;
 		goto err_fb_release;
@@ -187,9 +258,13 @@ static int loongson_soc_vga_probe(struct platform_device *pdev)
 		goto err_unmap;
 	}
 
+	par->flush_jiffies = msecs_to_jiffies(VGA_FLUSH_INTERVAL_MS);
+	timer_setup(&par->flush_timer, loongson_soc_vga_flush_timer, 0);
+	mod_timer(&par->flush_timer, jiffies + par->flush_jiffies);
+
 	dev_info(dev, "fb%d: Loongson SoC VGA framebuffer at 0x%lx, %lu bytes\n",
 		 info->node, par->fb_phys, par->fb_size);
-	dev_info(dev, "mode %dx%d@%d, line length %d\n",
+	dev_info(dev, "mode %dx%d@%d, line length %d, double buffer\n",
 		 info->var.xres, info->var.yres, info->var.bits_per_pixel,
 		 info->fix.line_length);
 
@@ -208,7 +283,9 @@ err_release_mem:
 static void loongson_soc_vga_remove(struct platform_device *pdev)
 {
 	struct fb_info *info = platform_get_drvdata(pdev);
+	struct loongson_soc_vga_par *par = info->par;
 
+	timer_delete_sync(&par->flush_timer);
 	unregister_framebuffer(info);
 }
 
