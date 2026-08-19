@@ -25,6 +25,8 @@
 #include <linux/timer.h>
 #include <asm/cacheflush.h>
 
+#include "loongson_soc_blitter.h"
+
 #define VGA_FB_ADDR		0x00
 #define VGA_FB_STRIDE		0x04
 #define VGA_CTRL		0x08
@@ -148,12 +150,92 @@ static void loongson_soc_vga_destroy(struct fb_info *info)
 		release_mem_region(mem->start, resource_size(mem));
 }
 
+static bool loongson_soc_vga_blit_can_accel(const struct fb_info *info,
+					    unsigned int x, unsigned int y,
+					    unsigned int width, unsigned int height)
+{
+	if (!loongson_soc_blitter_available())
+		return false;
+	if (in_interrupt() || in_atomic())
+		return false;
+	if (width == 0 || height == 0)
+		return false;
+	if (width & 1)
+		return false;
+	if (x & 1)
+		return false;
+	if (x + width > info->var.xres_virtual ||
+	    y + height > info->var.yres_virtual)
+		return false;
+	return true;
+}
+
+static void loongson_soc_vga_fillrect(struct fb_info *info,
+				      const struct fb_fillrect *rect)
+{
+	u32 dst_addr;
+	u32 color;
+
+	if (!loongson_soc_vga_blit_can_accel(info, rect->dx, rect->dy,
+					     rect->width, rect->height)) {
+		sys_fillrect(info, rect);
+		return;
+	}
+
+	dst_addr = info->fix.smem_start +
+		   rect->dy * info->fix.line_length + rect->dx * 2;
+	color = (u32)rect->color & 0xffff;
+
+	if (loongson_soc_blitter_fill(dst_addr, info->fix.line_length,
+				      rect->width, rect->height, color))
+		sys_fillrect(info, rect);
+}
+
+static void loongson_soc_vga_copyarea(struct fb_info *info,
+				      const struct fb_copyarea *area)
+{
+	u32 src_addr;
+	u32 dst_addr;
+
+	if (!loongson_soc_vga_blit_can_accel(info, area->dx, area->dy,
+					     area->width, area->height)) {
+		sys_copyarea(info, area);
+		return;
+	}
+
+	/* Source must also be 4-byte aligned and inside the virtual screen. */
+	if ((area->sx & 1) ||
+	    area->sx + area->width > info->var.xres_virtual ||
+	    area->sy + area->height > info->var.yres_virtual) {
+		sys_copyarea(info, area);
+		return;
+	}
+
+	/* The Blitter does not guarantee overlap-safe COPY. */
+	if (area->sx < area->dx + area->width &&
+	    area->dx < area->sx + area->width &&
+	    area->sy < area->dy + area->height &&
+	    area->dy < area->sy + area->height) {
+		sys_copyarea(info, area);
+		return;
+	}
+
+	src_addr = info->fix.smem_start +
+		   area->sy * info->fix.line_length + area->sx * 2;
+	dst_addr = info->fix.smem_start +
+		   area->dy * info->fix.line_length + area->dx * 2;
+
+	if (loongson_soc_blitter_copy(src_addr, info->fix.line_length,
+				      dst_addr, info->fix.line_length,
+				      area->width, area->height))
+		sys_copyarea(info, area);
+}
 static const struct fb_ops loongson_soc_vga_ops = {
 	.owner		= THIS_MODULE,
 	.fb_read	= fb_sys_read,
 	.fb_write	= fb_sys_write,
-	.fb_fillrect	= sys_fillrect,
-	.fb_copyarea	= sys_copyarea,
+	.fb_fillrect	= loongson_soc_vga_fillrect,
+	.fb_copyarea	= loongson_soc_vga_copyarea,
 	.fb_imageblit	= sys_imageblit,
 	.fb_destroy	= loongson_soc_vga_destroy,
 	.fb_setcolreg	= loongson_soc_vga_setcolreg,
