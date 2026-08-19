@@ -41,7 +41,7 @@
 #define VGA_BPP			16
 #define VGA_STRIDE		(VGA_XRES * VGA_BPP / 8)
 #define VGA_FB_BYTES		(VGA_XRES * VGA_YRES * VGA_BPP / 8)
-#define VGA_FB_BUFFERS		2
+#define VGA_FB_BUFFERS		3
 #define VGA_FB_TOTAL		(VGA_FB_BYTES * VGA_FB_BUFFERS)
 #define VGA_FLUSH_INTERVAL_MS	16
 
@@ -124,10 +124,10 @@ static int loongson_soc_vga_pan_display(struct fb_var_screeninfo *var,
 	loongson_soc_vga_flush(info, phys, VGA_FB_BYTES);
 	writel(lower_32_bits(phys), par->regs + VGA_FB_ADDR);
 
-	/* Wait until the pending swap is latched at the next frame start. */
-	while (readl(par->regs + VGA_STATUS) & VGA_STATUS_SWAP_PENDING)
-		cpu_relax();
-
+	/*
+	 * Async flip: do not busy-wait for swap_pending.  Triple buffering in
+	 * userspace ensures the buffer being drawn is neither current nor pending.
+	 */
 	par->visible_phys = phys;
 	info->var.yoffset = yoffset;
 
