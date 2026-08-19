@@ -123,6 +123,7 @@ obj-$(CONFIG_FB_OF)               += offb.o
 obj-$(CONFIG_FB_SSD1307)	  += ssd1307fb.o
 obj-$(CONFIG_FB_SIMPLE)           += simplefb.o
 obj-$(CONFIG_FB_LOONGSON_SOC_VGA) += loongson_soc_vga.o
+obj-$(CONFIG_FB_LOONGSON_SOC_BLITTER) += loongson_soc_blitter.o
 
 # the test framebuffer is last
 obj-$(CONFIG_FB_VIRTUAL)          += vfb.o

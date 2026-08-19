@@ -1800,6 +1800,15 @@ config FB_LOONGSON_SOC_VGA
 	  controller at 0x1fe90000 and exposes the 640x480 RGB565 framebuffer
 	  as /dev/fb0.
 
+config FB_LOONGSON_SOC_BLITTER
+	bool "Loongson SoC 2D Blitter support"
+	depends on FB_LOONGSON_SOC_VGA
+	default y
+	help
+	  Say Y to enable the 2D Blitter driver for the Loongson Education
+	  SoC FPGA platform. It exposes /dev/blitter and provides hardware
+	  fill/copy acceleration to the Loongson SoC VGA framebuffer driver.
+
 config FB_SSD1307
 	tristate "Solomon SSD1307 framebuffer support"
 	depends on FB && I2C

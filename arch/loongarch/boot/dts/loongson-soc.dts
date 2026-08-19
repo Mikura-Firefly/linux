@@ -72,6 +72,15 @@
 			status = "okay";
 		};
 
+		blitter@1fea0000 {
+			compatible = "loongson-edu,blitter";
+			reg = <0x1fea0000 0x100>;
+			interrupt-parent = <&cpu_intc>;
+			interrupts = <7>;
+			memory-region = <&framebuffer>;
+			status = "okay";
+		};
+
 		keyboard@1fd0f040 {
 			compatible = "loongson-edu,ps2-keyboard";
 			reg = <0x1fd0f040 0x8>;
