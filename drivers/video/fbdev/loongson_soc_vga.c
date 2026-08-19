@@ -325,6 +325,7 @@ static int loongson_soc_vga_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err_fb_release;
 	}
+	info->flags |= FBINFO_VIRTFB;
 	info->pseudo_palette = par->palette;
 	info->fbops = &loongson_soc_vga_ops;
 

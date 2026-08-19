@@ -167,14 +167,14 @@ static int loongson_soc_blitter_exec(struct loongson_soc_blitter *blt,
 	if (op->op == 1)
 		ctrl |= BLT_CTRL_OP_COPY;
 
-	writel(op->src_addr,   cfg + BLT_SRC_ADDR);
-	writel(op->dst_addr,   cfg + BLT_DST_ADDR);
-	writel(op->src_stride, cfg + BLT_SRC_STRIDE);
-	writel(op->dst_stride, cfg + BLT_DST_STRIDE);
-	writel(op->width,      cfg + BLT_WIDTH);
-	writel(op->height,     cfg + BLT_HEIGHT);
-	writel(op->color,      cfg + BLT_COLOR);
-	writel(ctrl,           cfg + BLT_CTRL);	/* last: parameters then START */
+	writel(op->src_addr,   cfg + 0);	/* BLT_SRC_ADDR   */
+	writel(op->dst_addr,   cfg + 1);	/* BLT_DST_ADDR   */
+	writel(op->src_stride, cfg + 2);	/* BLT_SRC_STRIDE */
+	writel(op->dst_stride, cfg + 3);	/* BLT_DST_STRIDE */
+	writel(op->width,      cfg + 4);	/* BLT_WIDTH      */
+	writel(op->height,     cfg + 5);	/* BLT_HEIGHT     */
+	writel(op->color,      cfg + 6);	/* BLT_COLOR      */
+	writel(ctrl,           cfg + 7);	/* BLT_CTRL, last: parameters then START */
 
 	loongson_soc_blitter_flush_line(cfg);
 
