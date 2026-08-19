@@ -23,6 +23,7 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/timer.h>
+#include <linux/processor.h>
 #include <asm/cacheflush.h>
 
 #include "loongson_soc_blitter.h"
@@ -31,6 +32,7 @@
 #define VGA_FB_STRIDE		0x04
 #define VGA_CTRL		0x08
 #define VGA_STATUS		0x0C
+#define VGA_STATUS_SWAP_PENDING	BIT(0)
 
 #define VGA_CTRL_ENABLE		BIT(0)
 
@@ -121,6 +123,11 @@ static int loongson_soc_vga_pan_display(struct fb_var_screeninfo *var,
 	phys = par->fb_phys + (unsigned long)yoffset * VGA_STRIDE;
 	loongson_soc_vga_flush(info, phys, VGA_FB_BYTES);
 	writel(lower_32_bits(phys), par->regs + VGA_FB_ADDR);
+
+	/* Wait until the pending swap is latched at the next frame start. */
+	while (readl(par->regs + VGA_STATUS) & VGA_STATUS_SWAP_PENDING)
+		cpu_relax();
+
 	par->visible_phys = phys;
 	info->var.yoffset = yoffset;
 
