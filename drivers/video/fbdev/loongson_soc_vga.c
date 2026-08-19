@@ -11,7 +11,7 @@
  *
  * The framebuffer is kept in cached memory and explicitly written back
  * with CACOP before it is scanned out. Double buffering is exposed through
- * FBIOPAN_DISPLAY (yoffset 0 or 480).
+ * FBIOPAN_DISPLAY (yoffset 0, 480 or 960 for triple buffering).
  */
 #include <linux/aperture.h>
 #include <linux/errno.h>
@@ -117,7 +117,8 @@ static int loongson_soc_vga_pan_display(struct fb_var_screeninfo *var,
 	unsigned int yoffset = var->yoffset;
 	unsigned long phys;
 
-	if (yoffset != 0 && yoffset != VGA_YRES)
+	if (yoffset % VGA_YRES != 0 ||
+	    yoffset >= VGA_YRES * VGA_FB_BUFFERS)
 		return -EINVAL;
 
 	phys = par->fb_phys + (unsigned long)yoffset * VGA_STRIDE;
@@ -359,9 +360,9 @@ static int loongson_soc_vga_probe(struct platform_device *pdev)
 
 	dev_info(dev, "fb%d: Loongson SoC VGA framebuffer at 0x%lx, %lu bytes\n",
 		 info->node, par->fb_phys, par->fb_size);
-	dev_info(dev, "mode %dx%d@%d, line length %d, double buffer\n",
+	dev_info(dev, "mode %dx%d@%d, line length %d, %d buffers\n",
 		 info->var.xres, info->var.yres, info->var.bits_per_pixel,
-		 info->fix.line_length);
+		 info->fix.line_length, VGA_FB_BUFFERS);
 
 	return 0;
 
