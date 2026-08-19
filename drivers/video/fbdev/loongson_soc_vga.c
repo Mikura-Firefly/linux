@@ -156,7 +156,7 @@ static bool loongson_soc_vga_blit_can_accel(const struct fb_info *info,
 {
 	if (!loongson_soc_blitter_available())
 		return false;
-	if (in_interrupt() || in_atomic())
+	if (in_interrupt())
 		return false;
 	if (width == 0 || height == 0)
 		return false;
