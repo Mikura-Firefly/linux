@@ -53,14 +53,6 @@
 #define BLT_STATUS_SIZE		0x04
 #define BLT_TIMEOUT_MS		1000
 
-/*
- * Hardware COPY uses a 32-deep read FIFO.  Its 8-bit remaining-word counter
- * can emit a 256-word burst for rectangles wider than 510 pixels, and the
- * FSM then waits for 256 words in the FIFO, which never happens.  Split COPY
- * into chunks of at most 510 pixels (255 words) to stay inside the safe range.
- */
-#define BLT_MAX_COPY_WIDTH	510
-
 #define BLITTER_IOCTL_MAGIC	0xB1
 
 struct blitter_op {
@@ -133,7 +125,7 @@ static irqreturn_t loongson_soc_blitter_irq(int irq, void *data)
 	return IRQ_NONE;
 }
 
-static int loongson_soc_blitter_exec_chunk(struct loongson_soc_blitter *blt,
+static int loongson_soc_blitter_exec(struct loongson_soc_blitter *blt,
 					     const struct blitter_op *op)
 {
 	u32 __iomem *cfg = blt->cfg;
@@ -205,33 +197,6 @@ static int loongson_soc_blitter_exec_chunk(struct loongson_soc_blitter *blt,
 	return 0;
 }
 
-static int loongson_soc_blitter_exec(struct loongson_soc_blitter *blt,
-				     const struct blitter_op *op)
-{
-	struct blitter_op chunk;
-	u32 x = 0;
-	int ret;
-
-	if (op->op != 1 || op->width <= BLT_MAX_COPY_WIDTH)
-		return loongson_soc_blitter_exec_chunk(blt, op);
-
-	chunk = *op;
-	while (x < op->width) {
-		u32 w = op->width - x;
-
-		if (w > BLT_MAX_COPY_WIDTH)
-			w = BLT_MAX_COPY_WIDTH;
-		chunk.src_addr = op->src_addr + x * 2;
-		chunk.dst_addr = op->dst_addr + x * 2;
-		chunk.width = w;
-		ret = loongson_soc_blitter_exec_chunk(blt, &chunk);
-		if (ret)
-			return ret;
-		x += w;
-	}
-
-	return 0;
-}
 static int loongson_soc_blitter_open(struct inode *inode, struct file *file)
 {
 	struct loongson_soc_blitter *blt =
