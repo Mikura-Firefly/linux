@@ -25,8 +25,9 @@
 		#size-cells = <1>;
 		ranges;
 
-		framebuffer: framebuffer@6000000 {
-			reg = <0x06000000 0x00800000>;
+		/* Large physically-contiguous CPU<->GPU shared region for RLE data. */
+		gpu_rle: gpu-rle@6000000 {
+			reg = <0x06000000 0x02000000>;
 			no-map;
 		};
 	};
@@ -65,19 +66,12 @@
 			status = "okay";
 		};
 
-		vga@1fe90000 {
-			compatible = "loongson-edu,vga";
+		gpu@1fe90000 {
+			compatible = "loongson-edu,gpu";
 			reg = <0x1fe90000 0x1000>;
-			memory-region = <&framebuffer>;
-			status = "okay";
-		};
-
-		blitter@1fea0000 {
-			compatible = "loongson-edu,blitter";
-			reg = <0x1fea0000 0x100>;
 			interrupt-parent = <&cpu_intc>;
-			interrupts = <7>;
-			memory-region = <&framebuffer>;
+			interrupts = <5>;
+			memory-region = <&gpu_rle>;
 			status = "okay";
 		};
 

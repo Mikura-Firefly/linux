@@ -661,4 +661,14 @@ source "drivers/misc/mchp_pci1xxxx/Kconfig"
 source "drivers/misc/keba/Kconfig"
 source "drivers/misc/amd-sbi/Kconfig"
 source "drivers/misc/rp1/Kconfig"
+config LOONGSON_SOC_GPU
+	tristate "Loongson SoC Simple GPU"
+	depends on OF
+	select FB_SYSMEM_HELPERS
+	help
+	  Support for the Loongson FPGA SoC simple GPU command FIFO.  The GPU
+	  uses an 8-bit indexed framebuffer with a scanout palette and accepts
+	  commands through /dev/gpu (write raw command words, ioctl for FENCE).
+	  When CONFIG_FB is enabled, /dev/fb0 is registered and fbcon/logo are
+	  uploaded to the GPU through DECODE_FRAME/FLIP.
 endmenu

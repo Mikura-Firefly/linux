@@ -199,6 +199,7 @@ static int dmfe_descriptor_init(struct net_device *dev);
 static void dmfe_set_phyxcer(struct net_device *dev);
 static u8 dmfe_sense_speed(struct net_device *dev);
 static void dmfe_process_mode(struct net_device *dev);
+static void dmfe_process_mode(struct net_device *dev);
 static void update_csr6(u32 val, void *ioaddr);
 static void send_filter_frame(struct net_device *dev, int mc_cnt);
 static void phy_write(void *iobase, u8 phy_addr, u8 offset, u16 phy_data, u32 chip_id);
@@ -249,6 +250,7 @@ static struct net_device *dmfe_init_one(struct device *device, void *base_addr, 
 	tp->ioaddr = base_addr;
 	tp->phy_addr = 0x1; //IRQ2PHYADDR(dev->irq);
 	tp->chip_id = IRQ2CHIPID(irq);
+	tp->media_mode = DMFE_AUTO;
 
 	dev->netdev_ops = &dmfe_netdev_ops;
 
@@ -557,6 +559,8 @@ static int dmfe_open(struct net_device *dev)
 
 	spin_lock_irqsave(&tp->lock, flags);
 	dmfe_hw_init(dev);
+	dmfe_set_phyxcer(dev);
+	netif_carrier_on(dev);
 	netif_wake_queue(dev);
 //	init_timer(&tp->timer);
 	timer_setup(&tp->timer, dmfe_timer, 0);
@@ -1230,6 +1234,11 @@ static void dmfe_timer(struct timer_list *t)
 	if (tp->rx_avail_cnt < RX_DESC_CNT)
 		allocate_rx_buffer(dev);
 	spin_unlock_irqrestore(&tp->lock, flags);
+
+	if (dmfe_sense_speed(dev) == 0) {
+		dmfe_process_mode(dev);
+		netif_carrier_on(dev);
+	}
 
 	mod_timer(&tp->timer, jiffies + max_t(unsigned long, 1, HZ / 100));
 }
